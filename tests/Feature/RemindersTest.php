@@ -225,5 +225,18 @@ it('comando está agendado todo dia às 9h', function () {
     $event = collect(app(Schedule::class)->events())
         ->first(fn ($event) => str_contains((string) $event->command, 'invoices:mark-overdue'));
 
-    expect($event?->expression)->toBe('0 9 * * *');
+    expect($event?->expression)->toBe('0 9 * * *')
+        // uma instância só mesmo com vários servidores, e o mutex expira em 1h se o processo morrer
+        ->and($event?->onOneServer)->toBeTrue()
+        ->and($event?->withoutOverlapping)->toBeTrue()
+        ->and($event?->expiresAt)->toBe(60);
+});
+
+it('token expirado é limpo todo dia', function () {
+    $event = collect(app(Schedule::class)->events())
+        ->first(fn ($event) => str_contains((string) $event->command, 'sanctum:prune-expired'));
+
+    expect($event?->expression)->toBe('0 3 * * *')
+        ->and((string) $event?->command)->toContain('--hours=24')
+        ->and($event?->onOneServer)->toBeTrue();
 });
