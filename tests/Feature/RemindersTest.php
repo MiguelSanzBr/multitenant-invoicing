@@ -17,6 +17,7 @@ use App\Infrastructure\Queue\SendInvoiceReminderJob;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Queue\Middleware\ThrottlesExceptions;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
@@ -73,9 +74,56 @@ it('mapeia a resposta do gateway', function (int $status, DeliveryOutcome $outco
     [409, DeliveryOutcome::AlreadySent],
     [500, DeliveryOutcome::RetryLater],
     [503, DeliveryOutcome::RetryLater],
+    // 408 e 429 são o gateway sobrecarregado, não pedido ruim: tenta de novo
+    [408, DeliveryOutcome::RetryLater],
+    [429, DeliveryOutcome::RetryLater],
+    [301, DeliveryOutcome::Rejected],
     [400, DeliveryOutcome::Rejected],
     [422, DeliveryOutcome::Rejected],
 ]);
+
+it('respeita o Retry-After do gateway, em segundos ou data, com teto de 1h', function (array $headers, ?int $seconds) {
+    Http::fake(['outbox.test/*' => Http::response('', 429, $headers)]);
+
+    $result = app(OutboxReminderSender::class)->send(IdempotencyKey::forInvoice(1, now()), new PhoneNumber('5511999990000'), 'oi');
+
+    expect($result->retryAfterSeconds)->toBe($seconds);
+})->with([
+    'segundos' => [['Retry-After' => '120'], 120],
+    'data http' => [['Retry-After' => 'Tue, 20 Oct 2026 12:05:00 GMT'], 300],
+    'teto' => [['Retry-After' => '86400'], 3600],
+    'sem header' => [[], null],
+    'lixo' => [['Retry-After' => 'amanhã'], null],
+]);
+
+it('manda com timeout e connect timeout da config', function () {
+    config(['services.outbox.timeout' => 7, 'services.outbox.connect_timeout' => 2]);
+    Http::fake(function (Request $request, array $options) {
+        expect($options['timeout'])->toBe(7)
+            ->and($options['connect_timeout'])->toBe(2);
+
+        return Http::response([], 202);
+    });
+
+    expect(app(OutboxReminderSender::class)->send(IdempotencyKey::forInvoice(1, now()), new PhoneNumber('5511999990000'), 'oi')->outcome)
+        ->toBe(DeliveryOutcome::Sent);
+    Http::assertSentCount(1);
+});
+
+it('job: timeout, prazo, backoff, lock e disjuntor pinados', function () {
+    $job = new SendInvoiceReminderJob(1, '2026-10-20');
+    $breaker = $job->middleware()[0];
+    $config = fn (string $property) => (new ReflectionProperty($breaker, $property))->getValue($breaker);
+
+    expect($job->timeout)->toBe(30)
+        ->and($job->uniqueFor)->toBe(86400)
+        ->and($job->backoff())->toBe([60, 300, 900, 3600])
+        ->and($job->retryUntil()->getTimestamp())->toBe(now()->addHours(12)->getTimestamp())
+        ->and($job->middleware())->toHaveCount(1)
+        ->and($breaker)->toBeInstanceOf(ThrottlesExceptions::class)
+        ->and($config('maxAttempts'))->toBe(10)
+        ->and($config('decaySeconds'))->toBe(300);
+});
 
 it('timeout ou gateway fora do ar vira retry', function () {
     Http::fake(fn () => throw new ConnectionException('Connection refused'));
@@ -156,7 +204,8 @@ it('retry_after de toda conexão de fila é maior q o timeout do job e o timeout
     $connections = collect(config('queue.connections'))->filter(fn (array $c) => isset($c['retry_after']));
 
     expect($connections)->not->toBeEmpty()
-        ->and(config('services.outbox.timeout'))->toBeLessThan($job->timeout);
+        ->and(config('services.outbox.timeout'))->toBeLessThan($job->timeout)
+        ->and(config('services.outbox.connect_timeout'))->toBeLessThan(config('services.outbox.timeout'));
     $connections->each(fn (array $c, string $name) => expect($c['retry_after'])
         ->toBeGreaterThan($job->timeout, "retry_after da conexão $name precisa ser maior q o timeout do job"));
 });
