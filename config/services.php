@@ -39,6 +39,9 @@ return [
         // gateway fora do ar não pode segurar o worker pelo timeout inteiro
         'connect_timeout' => (int) env('OUTBOX_CONNECT_TIMEOUT', 2),
         // namespace da chave no gateway: staging e produção no mesmo outbox não podem colidir na fatura 42
+        // teto anti-abuso do SMS: lembretes entregues por fatura e por empresa no dia
+        'max_per_invoice' => (int) env('REMINDERS_MAX_PER_INVOICE', 3),
+        'max_per_company_per_day' => (int) env('REMINDERS_MAX_PER_COMPANY_PER_DAY', 200),
         'key_prefix' => env('OUTBOX_KEY_PREFIX', Str::slug((string) env('APP_NAME', 'app')).'-'.env('APP_ENV', 'production').'-'),
     ],
 

@@ -63,7 +63,7 @@ it('conta lembretes entregues por fatura, uma vez por chave', function (Reminder
 })->with('reminder logs');
 
 it('conta lembretes entregues da empresa no dia', function (ReminderLog $log) {
-    $sibling = Invoice::factory()->for($this->invoice->client)->create();
+    $sibling = Invoice::factory()->create(['client_id' => $this->invoice->client_id]);
     $other = Invoice::factory()->create();
     $today = new DateTimeImmutable('2026-10-20');
     $log->record(attempt(DeliveryOutcome::Sent));

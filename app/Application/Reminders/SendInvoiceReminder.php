@@ -11,6 +11,7 @@ use App\Domain\NotFound;
 use App\Domain\Reminders\DeliveryResult;
 use App\Domain\Reminders\IdempotencyKey;
 use App\Domain\Reminders\ReminderAttempt;
+use App\Domain\Reminders\ReminderLimits;
 use App\Domain\Reminders\ReminderLog;
 use App\Domain\Reminders\ReminderSender;
 use App\Domain\RuleViolation;
@@ -23,6 +24,7 @@ final readonly class SendInvoiceReminder
         private CrossTenantClients $clients,
         private ReminderSender $sender,
         private ReminderLog $log,
+        private ReminderLimits $limits,
     ) {}
 
     /** Devolve null quando não tinha nada pra mandar. */
@@ -39,6 +41,12 @@ final readonly class SendInvoiceReminder
         $key = IdempotencyKey::forInvoice($invoiceId, $day);
 
         if ($this->log->alreadyDelivered($key)) {
+            return null;
+        }
+
+        // teto anti-abuso: passou, não manda (a cota da empresa zera no dia seguinte)
+        if ($this->log->deliveredCount($invoiceId) >= $this->limits->perInvoice
+            || $this->log->deliveredOn($invoice->companyId, $day) >= $this->limits->perCompanyPerDay) {
             return null;
         }
 

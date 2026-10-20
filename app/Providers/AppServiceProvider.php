@@ -8,6 +8,7 @@ use App\Domain\Billing\ClientRepository;
 use App\Domain\Billing\CrossTenantClients;
 use App\Domain\Billing\CrossTenantInvoices;
 use App\Domain\Billing\InvoiceRepository;
+use App\Domain\Reminders\ReminderLimits;
 use App\Domain\Reminders\ReminderLog;
 use App\Domain\Reminders\ReminderQueue;
 use App\Domain\Reminders\ReminderSender;
@@ -25,6 +26,7 @@ use App\Infrastructure\Persistence\Models\Reminder;
 use App\Infrastructure\Queue\LaravelReminderQueue;
 use App\Infrastructure\Tenancy\AuthTenantContext;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -47,6 +49,14 @@ class AppServiceProvider extends ServiceProvider
         ReminderLog::class => EloquentReminderLog::class,
         ReminderQueue::class => LaravelReminderQueue::class,
     ];
+
+    public function register(): void
+    {
+        $this->app->bind(ReminderLimits::class, fn () => new ReminderLimits(
+            Config::integer('services.outbox.max_per_invoice'),
+            Config::integer('services.outbox.max_per_company_per_day'),
+        ));
+    }
 
     public function boot(): void
     {
