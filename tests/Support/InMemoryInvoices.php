@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Support;
 
+use App\Domain\Billing\CrossTenantInvoices;
 use App\Domain\Billing\Invoice;
 use App\Domain\Billing\InvoiceRepository;
-use App\Domain\Billing\CrossTenantInvoices;
 use App\Domain\Billing\InvoiceStatus;
 use DateTimeImmutable;
 

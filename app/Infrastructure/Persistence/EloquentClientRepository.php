@@ -12,7 +12,7 @@ use App\Infrastructure\Persistence\Models\Client as ClientModel;
 use App\Infrastructure\Persistence\Models\Scopes\CompanyScope;
 use Illuminate\Database\Eloquent\Builder;
 
-final class EloquentClientRepository implements CrossTenantClients, ClientRepository
+final class EloquentClientRepository implements ClientRepository, CrossTenantClients
 {
     public function find(int $id): ?Client
     {

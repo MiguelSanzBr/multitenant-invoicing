@@ -8,6 +8,7 @@ use App\Domain\Billing\ClientRepository;
 use App\Domain\Billing\DueDate;
 use App\Domain\Billing\Invoice;
 use App\Domain\Billing\InvoiceRepository;
+use App\Domain\Billing\InvoiceStatus;
 use App\Domain\Billing\Money;
 use App\Domain\NotFound;
 use App\Domain\Tenancy\TenantContext;
@@ -31,7 +32,7 @@ final readonly class CreateInvoice
             $data->description,
             Money::brl($data->amountCents),
             DueDate::fromString($data->dueDate),
-            $data->status,
+            $data->status ?? InvoiceStatus::Draft,
         ));
     }
 }

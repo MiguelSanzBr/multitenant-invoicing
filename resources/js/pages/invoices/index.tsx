@@ -39,8 +39,14 @@ export default function InvoicesIndex({ invoices }: { invoices: Paginated<Invoic
                             <tbody>
                                 {invoices.data.map((invoice) => (
                                     <tr key={invoice.id} className="border-t">
-                                        <td className="p-3 font-medium underline-offset-4 hover:underline">
-                                            <Link href={`/invoices/${invoice.id}/edit`}>{invoice.description}</Link>
+                                        <td className="p-3 font-medium">
+                                            {invoice.status === 'paid' ? (
+                                                invoice.description
+                                            ) : (
+                                                <Link href={`/invoices/${invoice.id}/edit`} className="underline-offset-4 hover:underline">
+                                                    {invoice.description}
+                                                </Link>
+                                            )}
                                         </td>
                                         <td className="p-3">{invoice.client?.name}</td>
                                         <td className="p-3 text-right whitespace-nowrap">{formatBRL(invoice.amount_cents)}</td>

@@ -53,7 +53,7 @@ class InvoiceController extends Controller
     public function update(InvoiceRequest $request, Invoice $invoice, UpdateInvoice $update): RedirectResponse
     {
         Gate::authorize('update', $invoice);
-        $update($invoice->id, $request->toData());
+        $update($invoice->id, $request->toData(), now());
 
         return $this->done('Fatura salva.');
     }

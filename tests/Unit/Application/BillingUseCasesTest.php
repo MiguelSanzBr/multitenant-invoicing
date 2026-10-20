@@ -106,7 +106,9 @@ it('edita vencida sem tirar ela de vencida e recusa transição q não existe', 
     expect($this->invoices->items[$overdue->id]->status)->toBe(InvoiceStatus::Overdue)
         ->and($this->invoices->items[$overdue->id]->description)->toBe('Site corrigido')
         ->and(fn () => $update($overdue->id, data($this->mine->id, ['dueDate' => '2026-10-01', 'status' => InvoiceStatus::Draft]), $today))
-        ->toThrow(RuleViolation::class);
+        ->toThrow(RuleViolation::class)
+        ->and(fn () => $update($overdue->id, data($this->mine->id, ['dueDate' => '2026-10-01', 'status' => InvoiceStatus::Paid]), $today))
+        ->toThrow(RuleViolation::class, 'Na edição a fatura só pode ir pra rascunho ou em aberto.');
 });
 
 it('marca como paga e apaga', function () {

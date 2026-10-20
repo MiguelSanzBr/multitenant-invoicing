@@ -13,6 +13,7 @@ final readonly class InvoiceData
         public string $description,
         public int $amountCents,
         public string $dueDate,
-        public InvoiceStatus $status,
+        /** null na edição quando não é pra mexer no status */
+        public ?InvoiceStatus $status,
     ) {}
 }

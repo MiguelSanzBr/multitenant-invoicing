@@ -26,7 +26,8 @@ class InvoiceRequest extends FormRequest
             'description' => ['required', 'string', 'max:255'],
             'amount_cents' => ['required', 'integer', 'min:1', 'max:100000000000'],
             'due_date' => ['required', 'date_format:Y-m-d'],
-            'status' => ['required', Rule::in([InvoiceStatus::Draft->value, InvoiceStatus::Open->value])],
+            // na edição o status é opcional: vencida edita sem mudar de status
+            'status' => [$this->isMethod('POST') ? 'required' : 'nullable', Rule::in([InvoiceStatus::Draft->value, InvoiceStatus::Open->value])],
         ];
     }
 
@@ -37,7 +38,7 @@ class InvoiceRequest extends FormRequest
             $this->string('description')->value(),
             $this->integer('amount_cents'),
             $this->string('due_date')->value(),
-            InvoiceStatus::from($this->string('status')->value()),
+            $this->filled('status') ? InvoiceStatus::from($this->string('status')->value()) : null,
         );
     }
 }

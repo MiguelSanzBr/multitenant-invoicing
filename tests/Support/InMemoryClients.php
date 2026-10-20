@@ -8,7 +8,7 @@ use App\Domain\Billing\Client;
 use App\Domain\Billing\ClientRepository;
 use App\Domain\Billing\CrossTenantClients;
 
-final class InMemoryClients implements CrossTenantClients, ClientRepository
+final class InMemoryClients implements ClientRepository, CrossTenantClients
 {
     /** @var array<int, Client> */
     public array $items = [];

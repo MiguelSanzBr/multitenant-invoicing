@@ -63,15 +63,20 @@ final class Invoice
         $this->status = InvoiceStatus::Overdue;
     }
 
-    public function edit(int $clientId, string $description, Money $amount, DueDate $dueDate, InvoiceStatus $status): void
+    public function revertToDraft(): void
+    {
+        if ($this->status !== InvoiceStatus::Open) {
+            throw new RuleViolation('Só fatura em aberto volta pra rascunho.');
+        }
+
+        $this->status = InvoiceStatus::Draft;
+    }
+
+    // edição mexe só nos dados. Status muda por método próprio (open, revertToDraft, markPaid, markOverdue)
+    public function edit(int $clientId, string $description, Money $amount, DueDate $dueDate, DateTimeImmutable $today): void
     {
         if ($this->status === InvoiceStatus::Paid) {
             throw new RuleViolation('Fatura paga não pode ser editada.');
-        }
-
-        // pago e vencido têm caminho próprio (markPaid e o comando diário), edição não pula etapa
-        if (! in_array($status, [InvoiceStatus::Draft, InvoiceStatus::Open], true)) {
-            throw new RuleViolation('Na edição a fatura só pode ficar como rascunho ou em aberto.');
         }
 
         self::guard($description, $amount);
@@ -79,7 +84,11 @@ final class Invoice
         $this->description = $description;
         $this->amount = $amount;
         $this->dueDate = $dueDate;
-        $this->status = $status;
+
+        // vencimento renegociado pra hoje ou depois: deixa de estar vencida e para de cobrar
+        if ($this->status === InvoiceStatus::Overdue && ! $dueDate->isBefore($today)) {
+            $this->status = InvoiceStatus::Open;
+        }
     }
 
     private static function guard(string $description, Money $amount): void

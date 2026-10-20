@@ -44,7 +44,7 @@ class InvoiceController extends Controller
     public function update(InvoiceRequest $request, Invoice $invoice, UpdateInvoice $update): InvoiceResource
     {
         Gate::authorize('update', $invoice);
-        $update($invoice->id, $request->toData());
+        $update($invoice->id, $request->toData(), now());
 
         return new InvoiceResource($invoice->refresh());
     }
