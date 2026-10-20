@@ -47,7 +47,7 @@ it('vence as em aberto com vencimento no passado e enfileira lembrete de todas a
     $draft = invoiceFor($this->ana, InvoiceStatus::Draft, '2026-01-01');
     $queue = new SpyReminderQueue;
 
-    $marked = (new MarkOverdueInvoices($this->invoices, $this->invoices, $queue))($this->today);
+    $marked = (new MarkOverdueInvoices($this->invoices, $queue))($this->today);
 
     expect($marked)->toBe(2)
         ->and($this->invoices->items[$late->id]->status)->toBe(InvoiceStatus::Overdue)
