@@ -46,3 +46,11 @@ it('manda visitante pro login', function () {
     $this->get('/')->assertRedirect('/dashboard');
     $this->get(route('dashboard'))->assertRedirect(route('login'));
 });
+
+it('só existem as rotas de login e logout, sem as de confirmação de senha do Fortify', function () {
+    $this->actingAs(User::factory()->create());
+
+    $this->get('/user/confirm-password')->assertNotFound();
+    $this->post('/user/confirm-password', ['password' => 'password'])->assertNotFound();
+    $this->get('/user/confirmed-password-status')->assertNotFound();
+});
