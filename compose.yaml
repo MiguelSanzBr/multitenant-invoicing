@@ -62,5 +62,23 @@ services:
     depends_on:
       setup: { condition: service_completed_successfully }
 
+  # opcional: docker compose --profile outbox up. Sem ele o OUTBOX_URL não resolve,
+  # o envio falha com erro de conexão e o job volta pra fila com backoff
+  outbox-gateway:
+    profiles: ["outbox"]
+    build: https://github.com/MiguelSanzBr/outbox-gateway-demo.git
+    command: ["/gateway"]
+    environment:
+      DATABASE_URL: postgres://invoicing:invoicing@db:5432/outbox
+      PROVIDER_URL: http://outbox-mock:9090/v1/messages
+    depends_on:
+      db: { condition: service_healthy }
+      outbox-mock: { condition: service_started }
+
+  outbox-mock:
+    profiles: ["outbox"]
+    build: https://github.com/MiguelSanzBr/outbox-gateway-demo.git
+    command: ["/mockprovider"]
+
 volumes:
   pgdata:
