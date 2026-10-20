@@ -13,5 +13,6 @@ interface InvoiceRepository
 
     public function delete(Invoice $invoice): void;
 
-    public function existsForClient(int $clientId): bool;
+    /** Empresa vem do próprio cliente, não do usuário logado: sem usuário a regra não pode falhar aberta. */
+    public function existsForClient(Client $client): bool;
 }

@@ -17,7 +17,7 @@ final readonly class DeleteClient
     {
         $client = $this->clients->find($id) ?? throw new NotFound("Cliente $id");
 
-        if ($this->invoices->existsForClient($id)) {
+        if ($this->invoices->existsForClient($client)) {
             throw new RuleViolation('Cliente tem faturas, exclua as faturas antes.');
         }
 

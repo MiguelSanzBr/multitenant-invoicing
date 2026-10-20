@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Support;
 
+use App\Domain\Billing\Client;
 use App\Domain\Billing\ConcurrencyConflict;
 use App\Domain\Billing\CrossTenantInvoices;
 use App\Domain\Billing\Invoice;
@@ -48,9 +49,9 @@ final class InMemoryInvoices implements CrossTenantInvoices, InvoiceRepository
         unset($this->items[$invoice->id]);
     }
 
-    public function existsForClient(int $clientId): bool
+    public function existsForClient(Client $client): bool
     {
-        return array_any($this->items, fn (Invoice $i) => $i->clientId === $clientId);
+        return array_any($this->items, fn (Invoice $i) => $i->clientId === $client->id && $i->companyId === $client->companyId);
     }
 
     public function markOpenPastDueAsOverdue(DateTimeImmutable $today): int

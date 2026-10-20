@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Persistence;
 
+use App\Domain\Billing\Client;
 use App\Domain\Billing\ConcurrencyConflict;
 use App\Domain\Billing\CrossTenantInvoices;
 use App\Domain\Billing\DueDate;
@@ -70,9 +71,9 @@ final class EloquentInvoiceRepository implements CrossTenantInvoices, InvoiceRep
         $this->owned($invoice)->delete();
     }
 
-    public function existsForClient(int $clientId): bool
+    public function existsForClient(Client $client): bool
     {
-        return InvoiceModel::where('client_id', $clientId)->exists();
+        return $this->allTenants()->where('company_id', $client->companyId)->where('client_id', $client->id)->exists();
     }
 
     public function markOpenPastDueAsOverdue(DateTimeImmutable $today): int
