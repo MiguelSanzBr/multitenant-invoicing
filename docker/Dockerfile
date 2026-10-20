@@ -14,6 +14,7 @@ RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
  && ln -s /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
 ARG UID=1000
 ARG GID=1000
-RUN groupadd -g ${GID} app && useradd -m -u ${UID} -g ${GID} app
+# -o aceita GID/UID q já existem na imagem base (ex. 20 no macOS)
+RUN groupadd -o -g ${GID} app && useradd -o -m -u ${UID} -g ${GID} app
 USER app
 WORKDIR /app

@@ -167,6 +167,12 @@ docker compose up -d --build        # app, Postgres 17, fila, scheduler e build 
 docker compose exec app php artisan migrate:fresh --seed
 ```
 
+O código entra no container por bind mount e a imagem roda com UID/GID 1000 por padrão. Se o seu usuário for outro, passa os ids no build (no bash o `UID` existe mas não é exportado e no zsh ele é especial, por isso vai com `env` na linha do comando):
+
+```bash
+env UID=$(id -u) GID=$(id -g) docker compose up -d --build
+```
+
 Abre http://localhost:8000. Usuários do seed, senha `password` pra todos:
 
 | E-mail | Empresa | Papel |

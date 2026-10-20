@@ -3,6 +3,10 @@ name: multitenant-invoicing
 x-php: &php
   build:
     context: docker
+    # mesmo dono dos arquivos do bind mount, senão o container não escreve em vendor/ e storage/
+    args:
+      UID: ${UID:-1000}
+      GID: ${GID:-1000}
   image: multitenant-invoicing-php
   volumes: [".:/app"]
   environment: &env
