@@ -70,27 +70,57 @@ it('só vence fatura em aberto com vencimento no passado', function () {
     expect($invoice->status)->toBe(InvoiceStatus::Overdue);
 });
 
-it('edita fatura não paga', function () {
-    $invoice = newInvoice(InvoiceStatus::Open);
-    $invoice->markOverdue(new DateTimeImmutable('2026-10-20'));
+it('edita fatura sem mexer no status', function (InvoiceStatus $status) {
+    $invoice = newInvoice($status);
 
-    $invoice->edit(3, 'Outra', Money::brl(5000), DueDate::fromString('2026-12-01'), InvoiceStatus::Open);
+    $invoice->edit(3, 'Outra', Money::brl(5000), DueDate::fromString('2026-12-01'), new DateTimeImmutable('2026-10-20'));
 
     expect($invoice->clientId)->toBe(3)
         ->and($invoice->description)->toBe('Outra')
         ->and($invoice->amount->cents)->toBe(5000)
         ->and((string) $invoice->dueDate)->toBe('2026-12-01')
-        ->and($invoice->status)->toBe(InvoiceStatus::Open);
+        ->and($invoice->status)->toBe($status);
+})->with([InvoiceStatus::Draft, InvoiceStatus::Open]);
+
+it('vencida continua vencida se o vencimento segue no passado', function () {
+    $invoice = newInvoice(InvoiceStatus::Open, '2026-10-01');
+    $invoice->markOverdue(new DateTimeImmutable('2026-10-20'));
+
+    $invoice->edit(2, 'Site com desconto', Money::brl(900), DueDate::fromString('2026-10-05'), new DateTimeImmutable('2026-10-20'));
+
+    expect($invoice->status)->toBe(InvoiceStatus::Overdue)
+        ->and($invoice->description)->toBe('Site com desconto');
 });
 
-it('edição não mexe em fatura paga nem marca paga', function () {
+it('vencida com vencimento renegociado pra hoje ou depois volta pra em aberto', function (string $due) {
+    $invoice = newInvoice(InvoiceStatus::Open, '2026-10-01');
+    $invoice->markOverdue(new DateTimeImmutable('2026-10-20'));
+
+    $invoice->edit(2, 'Site', Money::brl(1000), DueDate::fromString($due), new DateTimeImmutable('2026-10-20 15:00'));
+
+    expect($invoice->status)->toBe(InvoiceStatus::Open);
+})->with(['2026-10-20', '2026-11-30']);
+
+it('edição não mexe em fatura paga e exige descrição', function () {
     $paid = newInvoice(InvoiceStatus::Open);
     $paid->markPaid(new DateTimeImmutable);
     $due = DueDate::fromString('2026-12-01');
+    $today = new DateTimeImmutable('2026-10-20');
 
-    expect(fn () => $paid->edit(2, 'x', Money::brl(1), $due, InvoiceStatus::Open))->toThrow(RuleViolation::class)
-        ->and(fn () => newInvoice()->edit(2, 'x', Money::brl(1), $due, InvoiceStatus::Paid))->toThrow(RuleViolation::class)
-        ->and(fn () => newInvoice()->edit(2, '', Money::brl(1), $due, InvoiceStatus::Open))->toThrow(RuleViolation::class);
+    expect(fn () => $paid->edit(2, 'x', Money::brl(1), $due, $today))->toThrow(RuleViolation::class, 'Fatura paga não pode ser editada.')
+        ->and(fn () => newInvoice()->edit(2, '', Money::brl(1), $due, $today))->toThrow(RuleViolation::class);
+});
+
+it('em aberto volta pra rascunho, mas só em aberto', function () {
+    $invoice = newInvoice(InvoiceStatus::Open);
+    $invoice->revertToDraft();
+
+    expect($invoice->status)->toBe(InvoiceStatus::Draft)
+        ->and(fn () => $invoice->revertToDraft())->toThrow(RuleViolation::class, 'Só fatura em aberto volta pra rascunho.');
+
+    $overdue = newInvoice(InvoiceStatus::Open, '2026-10-01');
+    $overdue->markOverdue(new DateTimeImmutable('2026-10-20'));
+    expect(fn () => $overdue->revertToDraft())->toThrow(RuleViolation::class);
 });
 
 it('cliente exige nome e atualiza dados', function () {

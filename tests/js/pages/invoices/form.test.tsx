@@ -68,6 +68,30 @@ describe('invoices/form', () => {
         expect(await screen.findByText('Data inválida.')).toBeInTheDocument();
     });
 
+    it('vencida edita sem select de status e sem mandar status', async () => {
+        const put = vi.spyOn(router, 'put').mockImplementation(() => {});
+        render(<InvoiceForm clients={clients} invoice={{ ...invoice, status: 'overdue' }} />);
+
+        expect(screen.queryByLabelText('Status')).not.toBeInTheDocument();
+        expect(screen.getByText(/Vencida\. Se o vencimento for pra hoje ou depois/)).toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+
+        expect(put).toHaveBeenCalledWith(
+            '/invoices/9',
+            { client_id: '5', description: 'Consultoria', amount_cents: 150000, due_date: '2026-11-10' },
+            expect.anything(),
+        );
+    });
+
+    it('paga fica só de leitura, sem salvar', () => {
+        render(<InvoiceForm clients={clients} invoice={{ ...invoice, status: 'paid', paid_at: '2026-10-20T13:00:00+00:00' }} />);
+
+        expect(screen.getByText('Fatura paga não pode ser editada.')).toBeInTheDocument();
+        expect(screen.getByLabelText('Descrição')).toBeDisabled();
+        expect(screen.queryByRole('button', { name: 'Salvar' })).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Excluir' })).toBeEnabled();
+    });
+
     it('dono exclui depois de confirmar, membro não vê o botão', async () => {
         const destroy = vi.spyOn(router, 'delete').mockImplementation(() => {});
         vi.spyOn(window, 'confirm').mockReturnValue(true);

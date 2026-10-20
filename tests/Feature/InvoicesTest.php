@@ -82,6 +82,44 @@ it('atualiza fatura', function () {
     expect($invoice->fresh()?->description)->toBe('Outra');
 });
 
+it('edita fatura vencida sem mandar status e ela continua vencida', function () {
+    $invoice = Invoice::factory()->for($this->client)->create(['status' => InvoiceStatus::Overdue, 'due_date' => '2026-10-01']);
+    $this->travelTo(new DateTime('2026-10-20 10:00'));
+
+    $data = invoiceData(['description' => 'Typo corrigido', 'due_date' => '2026-10-01']);
+    unset($data['status']);
+    $this->put(route('invoices.update', $invoice), $data)->assertRedirect(route('invoices.index'));
+
+    expect($invoice->fresh()?->status)->toBe(InvoiceStatus::Overdue)
+        ->and($invoice->fresh()?->description)->toBe('Typo corrigido');
+});
+
+it('vencida com vencimento renegociado volta pra em aberto', function () {
+    $invoice = Invoice::factory()->for($this->client)->create(['status' => InvoiceStatus::Overdue, 'due_date' => '2026-10-01']);
+    $this->travelTo(new DateTime('2026-10-20 10:00'));
+
+    $data = invoiceData(['due_date' => '2026-11-15']);
+    unset($data['status']);
+    $this->put(route('invoices.update', $invoice), $data)->assertRedirect(route('invoices.index'));
+
+    expect($invoice->fresh()?->status)->toBe(InvoiceStatus::Open);
+});
+
+it('não manda vencida pra rascunho pela edição', function () {
+    $invoice = Invoice::factory()->for($this->client)->create(['status' => InvoiceStatus::Overdue, 'due_date' => '2026-10-01']);
+
+    $this->put(route('invoices.update', $invoice), invoiceData(['due_date' => '2026-10-01', 'status' => 'draft']))->assertRedirect();
+
+    expect($invoice->fresh()?->status)->toBe(InvoiceStatus::Overdue);
+});
+
+it('status é obrigatório só na criação', function () {
+    $data = invoiceData();
+    unset($data['status']);
+
+    $this->post(route('invoices.store'), $data)->assertSessionHasErrors('status');
+});
+
 it('não edita fatura paga', function () {
     $invoice = Invoice::factory()->for($this->client)->paid()->create();
 

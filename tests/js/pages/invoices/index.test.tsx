@@ -44,6 +44,14 @@ describe('invoices/index', () => {
         expect(post).toHaveBeenCalledWith('/invoices/1/pay', {}, { preserveScroll: true });
     });
 
+    it('fatura paga aparece sem link de edição', () => {
+        render(<InvoicesIndex invoices={page([invoice({ status: 'paid', description: 'Paga' })])} />);
+
+        const row = screen.getByRole('row', { name: /Paga/ });
+        expect(within(row).queryByRole('link')).not.toBeInTheDocument();
+        expect(within(row).getAllByText('Paga')).toHaveLength(2);
+    });
+
     it('mostra aviso quando não tem fatura', () => {
         render(<InvoicesIndex invoices={page([])} />);
 

@@ -79,16 +79,34 @@ it('não cria nem move fatura pra cliente de outra empresa', function () {
     $update = new UpdateInvoice($this->invoices, $this->clients);
 
     expect(fn () => ($this->createInvoice)(data($this->foreign->id)))->toThrow(NotFound::class)
-        ->and(fn () => $update($invoice->id, data($this->foreign->id)))->toThrow(NotFound::class);
+        ->and(fn () => $update($invoice->id, data($this->foreign->id), new DateTimeImmutable))->toThrow(NotFound::class);
 });
 
-it('atualiza fatura', function () {
-    $invoice = ($this->createInvoice)(data($this->mine->id));
+it('atualiza fatura e aplica a transição pedida', function (InvoiceStatus $from, ?InvoiceStatus $asked, InvoiceStatus $expected) {
+    $invoice = ($this->createInvoice)(data($this->mine->id, ['status' => $from]));
 
-    (new UpdateInvoice($this->invoices, $this->clients))($invoice->id, data($this->mine->id, ['description' => 'Outra', 'status' => InvoiceStatus::Draft]));
+    (new UpdateInvoice($this->invoices, $this->clients))($invoice->id, data($this->mine->id, ['description' => 'Outra', 'status' => $asked]), new DateTimeImmutable('2026-10-20'));
 
     expect($this->invoices->items[$invoice->id]->description)->toBe('Outra')
-        ->and($this->invoices->items[$invoice->id]->status)->toBe(InvoiceStatus::Draft);
+        ->and($this->invoices->items[$invoice->id]->status)->toBe($expected);
+})->with([
+    'em aberto pra rascunho' => [InvoiceStatus::Open, InvoiceStatus::Draft, InvoiceStatus::Draft],
+    'rascunho abre' => [InvoiceStatus::Draft, InvoiceStatus::Open, InvoiceStatus::Open],
+    'mesmo status' => [InvoiceStatus::Open, InvoiceStatus::Open, InvoiceStatus::Open],
+    'sem status' => [InvoiceStatus::Draft, null, InvoiceStatus::Draft],
+]);
+
+it('edita vencida sem tirar ela de vencida e recusa transição q não existe', function () {
+    $overdue = $this->invoices->save(new Invoice(null, 1, $this->mine->id, 'Site', Money::brl(1000), DueDate::fromString('2026-10-01'), InvoiceStatus::Overdue));
+    $update = new UpdateInvoice($this->invoices, $this->clients);
+    $today = new DateTimeImmutable('2026-10-20');
+
+    $update($overdue->id, data($this->mine->id, ['description' => 'Site corrigido', 'dueDate' => '2026-10-01', 'status' => null]), $today);
+
+    expect($this->invoices->items[$overdue->id]->status)->toBe(InvoiceStatus::Overdue)
+        ->and($this->invoices->items[$overdue->id]->description)->toBe('Site corrigido')
+        ->and(fn () => $update($overdue->id, data($this->mine->id, ['dueDate' => '2026-10-01', 'status' => InvoiceStatus::Draft]), $today))
+        ->toThrow(RuleViolation::class);
 });
 
 it('marca como paga e apaga', function () {
@@ -106,7 +124,7 @@ it('não acha fatura de outra empresa em nenhum caso de uso', function (string $
     $theirs = $this->invoices->save(new Invoice(null, 2, $this->foreign->id, 'Dela', Money::brl(1), DueDate::fromString('2026-01-01'), InvoiceStatus::Open));
 
     match ($useCase) {
-        'update' => (new UpdateInvoice($this->invoices, $this->clients))($theirs->id, data($this->mine->id)),
+        'update' => (new UpdateInvoice($this->invoices, $this->clients))($theirs->id, data($this->mine->id), new DateTimeImmutable),
         'pay' => (new MarkInvoicePaid($this->invoices))($theirs->id, new DateTimeImmutable),
         'delete' => (new DeleteInvoice($this->invoices))($theirs->id),
     };
