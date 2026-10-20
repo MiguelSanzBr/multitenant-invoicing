@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Application\Billing\CreateClient;
 use App\Application\Billing\DeleteClient;
-use App\Application\Billing\SaveClient;
+use App\Application\Billing\UpdateClient;
 use App\Http\Requests\ClientRequest;
 use App\Http\Resources\ClientResource;
 use App\Infrastructure\Persistence\Models\Client;
@@ -33,10 +34,10 @@ class ClientController extends Controller
         return Inertia::render('clients/form');
     }
 
-    public function store(ClientRequest $request, SaveClient $save): RedirectResponse
+    public function store(ClientRequest $request, CreateClient $create): RedirectResponse
     {
         Gate::authorize('create', Client::class);
-        $save(null, ...$request->fields());
+        $create($request->toData());
 
         return $this->done('Cliente salvo.');
     }
@@ -48,10 +49,10 @@ class ClientController extends Controller
         return Inertia::render('clients/form', ['client' => (new ClientResource($client))->resolve()]);
     }
 
-    public function update(ClientRequest $request, Client $client, SaveClient $save): RedirectResponse
+    public function update(ClientRequest $request, Client $client, UpdateClient $update): RedirectResponse
     {
         Gate::authorize('update', $client);
-        $save($client->id, ...$request->fields());
+        $update($client->id, $request->toData());
 
         return $this->done('Cliente salvo.');
     }

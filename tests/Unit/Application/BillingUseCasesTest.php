@@ -2,12 +2,14 @@
 
 declare(strict_types=1);
 
+use App\Application\Billing\ClientData;
+use App\Application\Billing\CreateClient;
 use App\Application\Billing\CreateInvoice;
 use App\Application\Billing\DeleteClient;
 use App\Application\Billing\DeleteInvoice;
 use App\Application\Billing\InvoiceData;
 use App\Application\Billing\MarkInvoicePaid;
-use App\Application\Billing\SaveClient;
+use App\Application\Billing\UpdateClient;
 use App\Application\Billing\UpdateInvoice;
 use App\Domain\Billing\Client;
 use App\Domain\Billing\DueDate;
@@ -39,17 +41,15 @@ function data(int $clientId, array $overrides = []): InvoiceData
 }
 
 it('cria cliente na empresa do usuário e atualiza', function () {
-    $save = new SaveClient($this->clients, new FixedTenant(1));
-
-    $client = $save(null, 'Caio', 'c@example.com', '5511977776666');
-    $save($client->id, 'Caio Lima', null, '5511977776666');
+    $client = (new CreateClient($this->clients, new FixedTenant(1)))(new ClientData('Caio', 'c@example.com', '5511977776666'));
+    (new UpdateClient($this->clients))($client->id, new ClientData('Caio Lima', null, '5511977776666'));
 
     expect($client->companyId)->toBe(1)
         ->and($this->clients->items[$client->id]->name)->toBe('Caio Lima');
 });
 
 it('não atualiza cliente de outra empresa', function () {
-    (new SaveClient($this->clients, new FixedTenant(1)))($this->foreign->id, 'Hack', null, '5511977776666');
+    (new UpdateClient($this->clients))($this->foreign->id, new ClientData('Hack', null, '5511977776666'));
 })->throws(NotFound::class);
 
 it('apaga cliente sem fatura, recusa com fatura e não acha o de outra empresa', function () {

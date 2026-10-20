@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
+use App\Application\Billing\ClientData;
 use App\Domain\Billing\PhoneNumber;
 use App\Domain\InvalidValue;
 use Closure;
@@ -30,15 +31,12 @@ class ClientRequest extends FormRequest
         ];
     }
 
-    /**
-     * @return array{string, string|null, string}
-     */
-    public function fields(): array
+    public function toData(): ClientData
     {
-        return [
+        return new ClientData(
             $this->string('name')->value(),
             $this->filled('email') ? $this->string('email')->value() : null,
             $this->string('phone')->value(),
-        ];
+        );
     }
 }

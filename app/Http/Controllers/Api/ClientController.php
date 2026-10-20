@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api;
 
+use App\Application\Billing\CreateClient;
 use App\Application\Billing\DeleteClient;
-use App\Application\Billing\SaveClient;
+use App\Application\Billing\UpdateClient;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ClientRequest;
 use App\Http\Resources\ClientResource;
@@ -24,10 +25,10 @@ class ClientController extends Controller
         return ClientResource::collection(Client::orderBy('name')->paginate(20));
     }
 
-    public function store(ClientRequest $request, SaveClient $save): JsonResponse
+    public function store(ClientRequest $request, CreateClient $create): JsonResponse
     {
         Gate::authorize('create', Client::class);
-        $client = $save(null, ...$request->fields());
+        $client = $create($request->toData());
 
         return new ClientResource(Client::findOrFail($client->id))->response()->setStatusCode(201);
     }
@@ -39,10 +40,10 @@ class ClientController extends Controller
         return new ClientResource($client);
     }
 
-    public function update(ClientRequest $request, Client $client, SaveClient $save): ClientResource
+    public function update(ClientRequest $request, Client $client, UpdateClient $update): ClientResource
     {
         Gate::authorize('update', $client);
-        $save($client->id, ...$request->fields());
+        $update($client->id, $request->toData());
 
         return new ClientResource($client->refresh());
     }
