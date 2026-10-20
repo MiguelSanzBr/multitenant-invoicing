@@ -23,7 +23,8 @@ final readonly class UpdateInvoice
         $invoice = $this->invoices->find($id) ?? throw new NotFound("Fatura $id");
         $this->clients->find($data->clientId) ?? throw new NotFound("Cliente {$data->clientId}");
 
-        $invoice->edit($data->clientId, $data->description, Money::brl($data->amountCents), DueDate::fromString($data->dueDate), $today);
+        // mantém a moeda da fatura: trocar pra BRL sem câmbio mudaria o valor calado
+        $invoice->edit($data->clientId, $data->description, new Money($data->amountCents, $invoice->amount->currency), DueDate::fromString($data->dueDate), $today);
 
         // status pedido vira a transição explícita; o q não tiver caminho no domínio é recusado
         match (true) {
