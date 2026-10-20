@@ -1,9 +1,9 @@
 <?php
 
-namespace App\Policies;
+namespace App\Http\Policies;
 
-use App\Models\Client;
-use App\Models\User;
+use App\Infrastructure\Persistence\Models\Client;
+use App\Infrastructure\Persistence\Models\User;
 
 class ClientPolicy
 {

@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Models\Concerns;
+namespace App\Infrastructure\Persistence\Models\Concerns;
 
-use App\Models\Company;
-use App\Models\Scopes\CompanyScope;
-use App\Models\User;
+use App\Infrastructure\Persistence\Models\Company;
+use App\Infrastructure\Persistence\Models\Scopes\CompanyScope;
+use App\Infrastructure\Persistence\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Auth;

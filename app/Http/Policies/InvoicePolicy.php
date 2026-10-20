@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Policies;
+namespace App\Http\Policies;
 
-use App\Enums\InvoiceStatus;
-use App\Models\Invoice;
-use App\Models\User;
+use App\Domain\Billing\InvoiceStatus;
+use App\Infrastructure\Persistence\Models\Invoice;
+use App\Infrastructure\Persistence\Models\User;
 
 class InvoicePolicy
 {

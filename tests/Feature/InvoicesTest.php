@@ -1,9 +1,9 @@
 <?php
 
-use App\Enums\InvoiceStatus;
-use App\Models\Client;
-use App\Models\Invoice;
-use App\Models\User;
+use App\Domain\Billing\InvoiceStatus;
+use App\Infrastructure\Persistence\Models\Client;
+use App\Infrastructure\Persistence\Models\Invoice;
+use App\Infrastructure\Persistence\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(function () {

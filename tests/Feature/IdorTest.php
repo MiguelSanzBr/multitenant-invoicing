@@ -1,8 +1,8 @@
 <?php
 
-use App\Models\Client;
-use App\Models\Invoice;
-use App\Models\User;
+use App\Infrastructure\Persistence\Models\Client;
+use App\Infrastructure\Persistence\Models\Invoice;
+use App\Infrastructure\Persistence\Models\User;
 
 // usuário da empresa A tentando mexer no que é da empresa B: tem q dar 404 e nada muda
 beforeEach(function () {

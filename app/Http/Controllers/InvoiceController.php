@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\InvoiceStatus;
+use App\Domain\Billing\InvoiceStatus;
 use App\Http\Requests\InvoiceRequest;
-use App\Models\Client;
-use App\Models\Invoice;
+use App\Infrastructure\Persistence\Models\Client;
+use App\Infrastructure\Persistence\Models\Invoice;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;

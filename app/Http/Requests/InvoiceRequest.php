@@ -2,8 +2,8 @@
 
 namespace App\Http\Requests;
 
-use App\Enums\InvoiceStatus;
-use App\Models\User;
+use App\Domain\Billing\InvoiceStatus;
+use App\Infrastructure\Persistence\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 

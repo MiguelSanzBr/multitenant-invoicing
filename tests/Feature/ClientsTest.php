@@ -1,7 +1,7 @@
 <?php
 
-use App\Models\Client;
-use App\Models\User;
+use App\Infrastructure\Persistence\Models\Client;
+use App\Infrastructure\Persistence\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(function () {

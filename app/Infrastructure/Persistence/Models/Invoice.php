@@ -1,12 +1,13 @@
 <?php
 
-namespace App\Models;
+namespace App\Infrastructure\Persistence\Models;
 
-use App\Enums\InvoiceStatus;
-use App\Models\Concerns\BelongsToCompany;
+use App\Domain\Billing\InvoiceStatus;
+use App\Infrastructure\Persistence\Models\Concerns\BelongsToCompany;
 use Carbon\CarbonImmutable;
 use Database\Factories\InvoiceFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -22,6 +23,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property CarbonImmutable|null $paid_at
  * @property-read Client $client
  */
+#[UseFactory(InvoiceFactory::class)]
 #[Fillable(['client_id', 'description', 'amount_cents', 'due_date', 'status', 'paid_at'])]
 class Invoice extends Model
 {

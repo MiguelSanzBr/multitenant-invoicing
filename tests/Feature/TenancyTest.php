@@ -1,10 +1,10 @@
 <?php
 
-use App\Models\Client;
-use App\Models\Company;
-use App\Models\Concerns\BelongsToCompany;
-use App\Models\Scopes\CompanyScope;
-use App\Models\User;
+use App\Infrastructure\Persistence\Models\Client;
+use App\Infrastructure\Persistence\Models\Company;
+use App\Infrastructure\Persistence\Models\Concerns\BelongsToCompany;
+use App\Infrastructure\Persistence\Models\Scopes\CompanyScope;
+use App\Infrastructure\Persistence\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -39,8 +39,8 @@ it('preenche company_id com a empresa do usuário logado e ignora outra', functi
 });
 
 it('todo model com company_id usa o escopo de tenant', function () {
-    $tenantModels = collect(glob(app_path('Models/*.php')))
-        ->map(fn (string $file) => 'App\\Models\\'.Str::before(basename($file), '.php'))
+    $tenantModels = collect(glob(app_path('Infrastructure/Persistence/Models/*.php')))
+        ->map(fn (string $file) => 'App\\Infrastructure\\Persistence\\Models\\'.Str::before(basename($file), '.php'))
         ->filter(fn (string $class) => is_subclass_of($class, Model::class))
         ->filter(fn (string $class) => Schema::hasColumn((new $class)->getTable(), 'company_id'))
         // User é a exceção consciente: o login busca usuário antes de existir tenant

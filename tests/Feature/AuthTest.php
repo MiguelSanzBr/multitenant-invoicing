@@ -1,6 +1,6 @@
 <?php
 
-use App\Models\User;
+use App\Infrastructure\Persistence\Models\User;
 use Illuminate\Support\Facades\RateLimiter;
 
 it('mostra a tela de login', function () {

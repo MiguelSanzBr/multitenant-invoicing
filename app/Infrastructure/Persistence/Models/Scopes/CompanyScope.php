@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Models\Scopes;
+namespace App\Infrastructure\Persistence\Models\Scopes;
 
-use App\Models\User;
+use App\Infrastructure\Persistence\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Scope;

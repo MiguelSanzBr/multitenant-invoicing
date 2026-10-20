@@ -1,10 +1,11 @@
 <?php
 
-namespace App\Models;
+namespace App\Infrastructure\Persistence\Models;
 
-use App\Models\Concerns\BelongsToCompany;
+use App\Infrastructure\Persistence\Models\Concerns\BelongsToCompany;
 use Database\Factories\ClientFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -15,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $email
  * @property string $phone
  */
+#[UseFactory(ClientFactory::class)]
 #[Fillable(['name', 'email', 'phone'])]
 class Client extends Model
 {
