@@ -21,6 +21,7 @@ final class OutboxReminderSender implements ReminderSender
         try {
             $response = Http::baseUrl(Config::string('services.outbox.url'))
                 ->timeout(Config::integer('services.outbox.timeout'))
+                ->connectTimeout(Config::integer('services.outbox.connect_timeout'))
                 ->acceptJson()
                 ->withHeaders(['Idempotency-Key' => $key->value])
                 ->post('/v1/messages', ['recipient' => $recipient->value, 'body' => $body]);
@@ -34,10 +35,28 @@ final class OutboxReminderSender implements ReminderSender
             $status === 200, $status === 202 => DeliveryOutcome::Sent,
             // o gateway já tem essa chave: alguém mandou antes, conta como enviado
             $status === 409 => DeliveryOutcome::AlreadySent,
-            $status >= 500 => DeliveryOutcome::RetryLater,
+            // 408 e 429 são o gateway sobrecarregado, não pedido ruim
+            $status === 408, $status === 429, $status >= 500 => DeliveryOutcome::RetryLater,
             default => DeliveryOutcome::Rejected,
         };
 
-        return new DeliveryResult($outcome, $status, $response->successful() ? null : mb_substr($response->body(), 0, 500));
+        return new DeliveryResult(
+            $outcome,
+            $status,
+            $response->successful() ? null : mb_substr($response->body(), 0, 500),
+            $outcome === DeliveryOutcome::RetryLater ? $this->retryAfter($response->header('Retry-After')) : null,
+        );
+    }
+
+    // Retry-After vem em segundos ou como data HTTP; teto de 1h pra um header maluco não sumir com o lembrete
+    private function retryAfter(string $header): ?int
+    {
+        $seconds = match (true) {
+            ctype_digit($header) => (int) $header,
+            ($at = strtotime($header)) !== false => $at - now()->getTimestamp(),
+            default => null,
+        };
+
+        return $seconds === null ? null : max(0, min($seconds, 3600));
     }
 }

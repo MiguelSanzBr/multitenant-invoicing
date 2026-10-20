@@ -17,8 +17,8 @@ use App\Infrastructure\Queue\SendInvoiceReminderJob;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Http\Client\ConnectionException;
-use Illuminate\Queue\Middleware\ThrottlesExceptions;
 use Illuminate\Http\Client\Request;
+use Illuminate\Queue\Middleware\ThrottlesExceptions;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 

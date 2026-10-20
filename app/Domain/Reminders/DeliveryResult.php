@@ -10,5 +10,7 @@ final readonly class DeliveryResult
         public DeliveryOutcome $outcome,
         public ?int $httpStatus = null,
         public ?string $error = null,
+        // quanto o gateway pediu pra esperar (Retry-After), só faz sentido no RetryLater
+        public ?int $retryAfterSeconds = null,
     ) {}
 }

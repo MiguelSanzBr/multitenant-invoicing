@@ -34,6 +34,8 @@ return [
     'outbox' => [
         'url' => env('OUTBOX_URL', 'http://outbox-gateway:8080'),
         'timeout' => (int) env('OUTBOX_TIMEOUT', 10),
+        // gateway fora do ar não pode segurar o worker pelo timeout inteiro
+        'connect_timeout' => (int) env('OUTBOX_CONNECT_TIMEOUT', 2),
     ],
 
     'slack' => [
