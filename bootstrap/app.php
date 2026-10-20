@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domain\InvalidValue;
 use App\Domain\NotFound;
 use App\Domain\RuleViolation;
 use App\Http\Middleware\HandleAppearance;
@@ -48,9 +49,10 @@ return Application::configure(basePath: dirname(__DIR__))
         // de outra empresa ou inexistente dá o mesmo 404, sem vazar q o id existe
         $exceptions->map(NotFound::class, fn (NotFound $e) => new NotFoundHttpException('Not found.', $e));
 
+        // regra de negócio é 409; valor q o value object recusou é 422, igual erro de validação
         $exceptions->render(function (RuleViolation $e, Request $request) {
             if ($request->is('api/*') || $request->expectsJson()) {
-                return response()->json(['message' => $e->getMessage()], 409);
+                return response()->json(['message' => $e->getMessage()], $e instanceof InvalidValue ? 422 : 409);
             }
 
             Inertia::flash('toast', ['type' => 'error', 'message' => $e->getMessage()]);

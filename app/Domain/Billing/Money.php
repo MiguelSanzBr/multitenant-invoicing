@@ -4,18 +4,18 @@ declare(strict_types=1);
 
 namespace App\Domain\Billing;
 
-use InvalidArgumentException;
+use App\Domain\InvalidValue;
 
 final readonly class Money
 {
     public function __construct(public int $cents, public string $currency = 'BRL')
     {
         if ($cents < 0) {
-            throw new InvalidArgumentException('Valor negativo.');
+            throw new InvalidValue('Valor negativo.');
         }
 
         if (preg_match('/^[A-Z]{3}$/', $currency) !== 1) {
-            throw new InvalidArgumentException("Moeda inválida: $currency");
+            throw new InvalidValue("Moeda inválida: $currency");
         }
     }
 

@@ -7,6 +7,7 @@ use App\Infrastructure\Persistence\Models\Client;
 use App\Infrastructure\Persistence\Models\Invoice;
 use App\Infrastructure\Persistence\Models\User;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Testing\TestResponse;
 
 // quem pode o q, pelas duas portas (web e API). Só o dono exclui; membro faz o resto
 beforeEach(function () {
@@ -17,7 +18,7 @@ beforeEach(function () {
     $this->invoice = Invoice::factory()->for($this->client)->create(['status' => InvoiceStatus::Open]);
 });
 
-function act(string $role, string $channel, string $method, string $url, array $data = []): Illuminate\Testing\TestResponse
+function act(string $role, string $channel, string $method, string $url, array $data = []): TestResponse
 {
     $user = test()->{$role};
 

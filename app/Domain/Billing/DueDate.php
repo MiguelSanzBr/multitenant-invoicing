@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domain\Billing;
 
+use App\Domain\InvalidValue;
 use DateTimeImmutable;
-use InvalidArgumentException;
 use Stringable;
 
 final readonly class DueDate implements Stringable
@@ -18,7 +18,7 @@ final readonly class DueDate implements Stringable
 
         // createFromFormat aceita 2026-02-30 e joga pra março, por isso compara de volta
         if ($parsed === false || $parsed->format('Y-m-d') !== $date) {
-            throw new InvalidArgumentException("Vencimento inválido: $date");
+            throw new InvalidValue("Vencimento inválido: $date");
         }
 
         return new self($date);

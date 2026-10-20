@@ -2,11 +2,10 @@
 
 declare(strict_types=1);
 
-use App\Domain\InvalidValue;
-
 use App\Domain\Billing\DueDate;
 use App\Domain\Billing\Money;
 use App\Domain\Billing\PhoneNumber;
+use App\Domain\InvalidValue;
 use App\Domain\Reminders\DeliveryOutcome;
 use App\Domain\Reminders\IdempotencyKey;
 
