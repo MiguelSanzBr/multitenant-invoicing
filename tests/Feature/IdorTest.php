@@ -70,3 +70,49 @@ it('web: não cria fatura apontando pra cliente de outra empresa', function () {
 
     expect(Invoice::withoutGlobalScopes()->count())->toBe(1);
 });
+
+describe('api', function () {
+    beforeEach(function () {
+        $this->withToken($this->intruder->createToken('t')->plainTextToken);
+    });
+
+    it('não vê nem lista cliente e fatura de outra empresa', function () {
+        $this->getJson("/api/v1/clients/{$this->client->id}")->assertNotFound();
+        $this->getJson("/api/v1/invoices/{$this->invoice->id}")->assertNotFound();
+        $this->getJson('/api/v1/clients')->assertOk()->assertJsonCount(0, 'data');
+        $this->getJson('/api/v1/invoices')->assertOk()->assertJsonCount(0, 'data');
+    });
+
+    it('não atualiza cliente nem fatura de outra empresa', function () {
+        $mine = Client::factory()->for($this->intruder->company)->create();
+
+        // controle: no próprio cliente funciona, então o 404 abaixo é do isolamento e não de rota faltando
+        $this->putJson("/api/v1/clients/{$mine->id}", ['name' => 'Meu', 'phone' => '5511999990000'])->assertOk();
+        $this->putJson("/api/v1/clients/{$this->client->id}", ['name' => 'Hack', 'phone' => '5511999990000'])->assertNotFound();
+        $this->putJson("/api/v1/invoices/{$this->invoice->id}", [
+            'client_id' => $mine->id, 'description' => 'Hack', 'amount_cents' => 1, 'due_date' => '2026-01-01', 'status' => 'open',
+        ])->assertNotFound();
+        $this->postJson("/api/v1/invoices/{$this->invoice->id}/pay")->assertNotFound();
+
+        expect($this->client->fresh()?->name)->toBe('Original')
+            ->and($this->invoice->fresh()?->description)->toBe('Original')
+            ->and($this->invoice->fresh()?->status)->toBe($this->invoice->status);
+    });
+
+    it('não apaga cliente nem fatura de outra empresa', function () {
+        $mine = Client::factory()->for($this->intruder->company)->create();
+        $this->deleteJson("/api/v1/clients/{$mine->id}")->assertNoContent();
+
+        $this->deleteJson("/api/v1/invoices/{$this->invoice->id}")->assertNotFound();
+        $this->deleteJson("/api/v1/clients/{$this->client->id}")->assertNotFound();
+
+        $this->assertModelExists($this->invoice);
+        $this->assertModelExists($this->client);
+    });
+
+    it('não cria fatura pra cliente de outra empresa', function () {
+        $this->postJson('/api/v1/invoices', [
+            'client_id' => $this->client->id, 'description' => 'Hack', 'amount_cents' => 1, 'due_date' => '2026-01-01', 'status' => 'open',
+        ])->assertUnprocessable()->assertJsonValidationErrors('client_id');
+    });
+});
