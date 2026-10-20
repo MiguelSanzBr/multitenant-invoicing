@@ -9,6 +9,7 @@ use App\Application\Billing\DeleteInvoice;
 use App\Application\Billing\MarkInvoicePaid;
 use App\Application\Billing\UpdateInvoice;
 use App\Http\Requests\InvoiceRequest;
+use App\Http\Resources\InvoiceResource;
 use App\Infrastructure\Persistence\Models\Client;
 use App\Infrastructure\Persistence\Models\Invoice;
 use Illuminate\Http\RedirectResponse;
@@ -16,7 +17,7 @@ use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
-// leitura vai direto no model (com escopo de tenant), escrita passa pelo caso de uso
+// leitura vai direto no model (com escopo de tenant) e sai pelo Resource, escrita passa pelo caso de uso
 class InvoiceController extends Controller
 {
     public function index(): Response
@@ -24,7 +25,8 @@ class InvoiceController extends Controller
         Gate::authorize('viewAny', Invoice::class);
 
         return Inertia::render('invoices/index', [
-            'invoices' => Invoice::with('client')->latest('due_date')->latest('id')->paginate(20),
+            'invoices' => Invoice::with('client:id,name')->latest('due_date')->latest('id')->paginate(20)
+                ->through(fn (Invoice $invoice) => (new InvoiceResource($invoice))->resolve()),
         ]);
     }
 
@@ -78,7 +80,7 @@ class InvoiceController extends Controller
     private function form(?Invoice $invoice = null): Response
     {
         return Inertia::render('invoices/form', array_filter([
-            'invoice' => $invoice,
+            'invoice' => $invoice ? (new InvoiceResource($invoice))->resolve() : null,
             'clients' => Client::orderBy('name')->get(['id', 'name']),
         ]));
     }

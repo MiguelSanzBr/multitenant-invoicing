@@ -40,8 +40,9 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'name' => config('app.name'),
+            // só o q a tela usa: company_id e timestamps não vão pro HTML da página
             'auth' => [
-                'user' => $request->user(),
+                'user' => $request->user() ? $request->user()->only(['id', 'name', 'email', 'role']) : null,
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];

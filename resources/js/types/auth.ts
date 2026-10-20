@@ -1,13 +1,10 @@
+// o q o HandleInertiaRequests compartilha, nada além
 export type User = {
     id: number;
     name: string;
     email: string;
     avatar?: string;
-    email_verified_at: string | null;
     role: 'owner' | 'member';
-    created_at: string;
-    updated_at: string;
-    [key: string]: unknown;
 };
 
 export type Auth = {

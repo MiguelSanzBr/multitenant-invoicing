@@ -7,6 +7,7 @@ export type Paginated<T> = {
     next_page_url: string | null;
 };
 
+// ClientResource
 export type Client = {
     id: number;
     name: string;
@@ -16,6 +17,7 @@ export type Client = {
 
 export type InvoiceStatus = 'draft' | 'open' | 'paid' | 'overdue';
 
+// InvoiceResource (client só quando o controller carrega)
 export type Invoice = {
     id: number;
     client_id: number;
@@ -25,7 +27,7 @@ export type Invoice = {
     due_date: string;
     status: InvoiceStatus;
     paid_at: string | null;
-    client?: Client;
+    client?: { id: number; name: string };
 };
 
 export type ReminderOutcome = 'sent' | 'already_sent' | 'retry_later' | 'rejected';

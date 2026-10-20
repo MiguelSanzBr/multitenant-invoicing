@@ -14,7 +14,7 @@ const invoice = (overrides: Partial<Invoice>): Invoice => ({
     due_date: '2026-11-10',
     status: 'open',
     paid_at: null,
-    client: { id: 2, name: 'Ana', email: null, phone: '5511999990000' },
+    client: { id: 2, name: 'Ana' },
     ...overrides,
 });
 

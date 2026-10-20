@@ -7,13 +7,14 @@ namespace App\Http\Controllers;
 use App\Application\Billing\DeleteClient;
 use App\Application\Billing\SaveClient;
 use App\Http\Requests\ClientRequest;
+use App\Http\Resources\ClientResource;
 use App\Infrastructure\Persistence\Models\Client;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
-// leitura vai direto no model (com escopo de tenant), escrita passa pelo caso de uso
+// leitura vai direto no model (com escopo de tenant) e sai pelo Resource, escrita passa pelo caso de uso
 class ClientController extends Controller
 {
     public function index(): Response
@@ -21,7 +22,7 @@ class ClientController extends Controller
         Gate::authorize('viewAny', Client::class);
 
         return Inertia::render('clients/index', [
-            'clients' => Client::orderBy('name')->paginate(20),
+            'clients' => Client::orderBy('name')->paginate(20)->through(fn (Client $client) => (new ClientResource($client))->resolve()),
         ]);
     }
 
@@ -44,7 +45,7 @@ class ClientController extends Controller
     {
         Gate::authorize('update', $client);
 
-        return Inertia::render('clients/form', ['client' => $client]);
+        return Inertia::render('clients/form', ['client' => (new ClientResource($client))->resolve()]);
     }
 
     public function update(ClientRequest $request, Client $client, SaveClient $save): RedirectResponse

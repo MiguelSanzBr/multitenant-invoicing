@@ -25,6 +25,7 @@ class InvoiceResource extends JsonResource
             'due_date' => $this->due_date->format('Y-m-d'),
             'status' => $this->status,
             'paid_at' => $this->paid_at?->toIso8601String(),
+            'client' => $this->whenLoaded('client', fn () => ['id' => $this->client->id, 'name' => $this->client->name]),
         ];
     }
 }
