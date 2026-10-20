@@ -200,7 +200,7 @@ curl -s -X POST localhost:8000/api/v1/tokens -H 'Content-Type: application/json'
 curl -s localhost:8000/api/v1/invoices -H "Authorization: Bearer <token>" -H 'Accept: application/json'
 ```
 
-O contrato está em [`openapi.yaml`](openapi.yaml).
+O token vale 30 dias (`SANCTUM_EXPIRATION`, em minutos); depois disso a API responde 401 e é só pedir outro. O contrato está em [`openapi.yaml`](openapi.yaml).
 
 Qualidade, tudo dentro do container:
 

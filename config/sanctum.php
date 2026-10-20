@@ -50,7 +50,8 @@ return [
     |
     */
 
-    'expiration' => null,
+    // em minutos, 30 dias. Token sem validade vira credencial eterna se vazar
+    'expiration' => (int) env('SANCTUM_EXPIRATION', 60 * 24 * 30),
 
     /*
     |--------------------------------------------------------------------------

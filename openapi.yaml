@@ -22,6 +22,7 @@ paths:
     post:
       tags: [auth]
       summary: Emite um token Sanctum
+      description: O token vale 30 dias (SANCTUM_EXPIRATION, em minutos). Depois disso a API responde 401.
       security: []
       requestBody:
         required: true
