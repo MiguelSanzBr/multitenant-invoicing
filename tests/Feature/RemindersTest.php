@@ -21,9 +21,10 @@ use Illuminate\Http\Client\Request;
 use Illuminate\Queue\Middleware\ThrottlesExceptions;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Str;
 
 beforeEach(function () {
-    config(['services.outbox.url' => 'http://outbox.test']);
+    config(['services.outbox.url' => 'http://outbox.test', 'services.outbox.key_prefix' => 'mti-testing-']);
     Http::preventStrayRequests();
     $this->travelTo(new DateTime('2026-10-20 09:00'));
     $this->client = Client::factory()->create(['name' => 'Ana', 'phone' => '5511999990000']);
@@ -53,12 +54,18 @@ it('manda pro outbox gateway com Idempotency-Key e o JSON esperado', function ()
 
     Http::assertSent(fn (Request $request) => $request->method() === 'POST'
         && $request->url() === 'http://outbox.test/v1/messages'
-        && $request->header('Idempotency-Key') === ["invoice-{$this->invoice->id}-2026-10-20"]
+        && $request->header('Idempotency-Key') === ["mti-testing-invoice-{$this->invoice->id}-2026-10-20"]
         && $request->data() === [
             'recipient' => '5511999990000',
             'body' => 'Olá Ana, a fatura "Site" de R$ 1.500,00 venceu em 10/10/2026.',
         ]);
     expect(reminderRows())->toBe([['outcome' => 'sent', 'http_status' => 202, 'idempotency_key' => "invoice-{$this->invoice->id}-2026-10-20"]]);
+});
+
+it('chave no gateway leva app e ambiente por padrão, pra staging e produção não colidirem', function () {
+    $services = require config_path('services.php');
+
+    expect($services['outbox']['key_prefix'])->toBe(Str::slug((string) config('app.name')).'-testing-');
 });
 
 it('mapeia a resposta do gateway', function (int $status, DeliveryOutcome $outcome) {
@@ -194,7 +201,7 @@ it('retry no dia seguinte mantém a chave do dia em q foi enfileirado', function
 
     runJob('2026-10-20');
 
-    Http::assertSent(fn (Request $request) => $request->header('Idempotency-Key') === ["invoice-{$this->invoice->id}-2026-10-20"]);
+    Http::assertSent(fn (Request $request) => $request->header('Idempotency-Key') === ["mti-testing-invoice-{$this->invoice->id}-2026-10-20"]);
 });
 
 it('lock único por fatura e por dia segura o job duplicado na fila', function () {
