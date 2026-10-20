@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 // só as regras q o app usa
 return [
     'date_format' => 'O campo :attribute precisa estar no formato :format.',

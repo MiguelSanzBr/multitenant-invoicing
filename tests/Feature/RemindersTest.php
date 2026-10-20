@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Domain\Billing\InvoiceStatus;
 use App\Domain\Billing\PhoneNumber;
 use App\Domain\Reminders\DeliveryOutcome;

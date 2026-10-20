@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Infrastructure\Persistence\Models\Client;
 use App\Infrastructure\Persistence\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;

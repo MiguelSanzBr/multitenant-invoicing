@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Infrastructure\Persistence\Models\Scopes;
 
 use App\Infrastructure\Persistence\Models\User;

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Domain\NotFound;
 use App\Domain\RuleViolation;
 use App\Http\Middleware\HandleAppearance;

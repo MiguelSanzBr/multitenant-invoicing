@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Application\Billing\MarkOverdueInvoices;
 use App\Application\Reminders\SendInvoiceReminder;
 use App\Domain\Billing\Client;

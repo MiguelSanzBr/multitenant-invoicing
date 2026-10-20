@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Application\Billing\CreateInvoice;
 use App\Application\Billing\DeleteClient;
 use App\Application\Billing\DeleteInvoice;

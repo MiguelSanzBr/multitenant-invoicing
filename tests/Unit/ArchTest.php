@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 // regra de dependência do hexagonal: domínio no centro, sem framework
 arch('domínio não depende de framework nem de outra camada')
     ->expect('App\Domain')
