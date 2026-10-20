@@ -2,10 +2,13 @@
 
 declare(strict_types=1);
 
+use App\Domain\Billing\InvoiceRepository;
 use App\Domain\Tenancy\TenantContext;
+use App\Infrastructure\Persistence\EloquentClientRepository;
 use App\Infrastructure\Persistence\Models\Client;
 use App\Infrastructure\Persistence\Models\Company;
 use App\Infrastructure\Persistence\Models\Concerns\BelongsToCompany;
+use App\Infrastructure\Persistence\Models\Invoice;
 use App\Infrastructure\Persistence\Models\Scopes\CompanyScope;
 use App\Infrastructure\Persistence\Models\User;
 use Illuminate\Auth\AuthenticationException;
@@ -68,3 +71,14 @@ it('dono e membro pertencem a uma empresa', function () {
 it('caso de uso sem usuário logado não descobre empresa', function () {
     app(TenantContext::class)->companyId();
 })->throws(AuthenticationException::class);
+
+it('regra de cliente com fatura vale mesmo sem usuário logado, sem depender do escopo', function () {
+    $client = Client::factory()->create();
+    Invoice::factory()->for($client)->create();
+    $lonely = Client::factory()->for($client->company)->create();
+    $repository = app(InvoiceRepository::class);
+    $domain = fn (Client $c) => app(EloquentClientRepository::class)->findAcrossTenants($c->id);
+
+    expect($repository->existsForClient($domain($client)))->toBeTrue()
+        ->and($repository->existsForClient($domain($lonely)))->toBeFalse();
+});
