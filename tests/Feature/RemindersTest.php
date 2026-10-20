@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Domain\Billing\Client as DomainClient;
+use App\Domain\Billing\CrossTenantClients;
 use App\Domain\Billing\CrossTenantInvoices;
 use App\Domain\Billing\InvoiceStatus;
 use App\Domain\Billing\PhoneNumber;
@@ -89,6 +91,22 @@ it('5xx faz o job lançar exceção pra fila tentar de novo', function () {
 
     expect(fn () => runJob())->toThrow(RuntimeException::class);
     expect(reminderRows()[0]['outcome'])->toBe('retry_later');
+});
+
+it('job falha sem retry quando o dado não fecha (cliente sumiu ou é de outra empresa)', function () {
+    app()->instance(CrossTenantClients::class, new class implements CrossTenantClients
+    {
+        public function findAcrossTenants(int $id): ?DomainClient
+        {
+            return new DomainClient($id, 999, 'Outra empresa', null, new PhoneNumber('5511900000000'));
+        }
+    });
+    Http::fake();
+
+    runJob()->assertFailed();
+
+    Http::assertNothingSent();
+    expect(reminderRows())->toBeEmpty();
 });
 
 it('4xx falha o job sem retry', function () {

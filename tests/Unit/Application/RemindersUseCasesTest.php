@@ -12,6 +12,7 @@ use App\Domain\Billing\Money;
 use App\Domain\Billing\PhoneNumber;
 use App\Domain\Reminders\DeliveryOutcome;
 use App\Domain\Reminders\DeliveryResult;
+use App\Domain\RuleViolation;
 use Tests\Support\FakeReminderSender;
 use Tests\Support\InMemoryClients;
 use Tests\Support\InMemoryInvoices;
@@ -104,3 +105,13 @@ it('não manda lembrete de fatura que não está vencida ou não existe', functi
         ->and(sendReminder(999))->toBeNull()
         ->and($this->sender->sent)->toBeEmpty();
 })->with([InvoiceStatus::Paid, InvoiceStatus::Open, InvoiceStatus::Draft]);
+
+it('não manda SMS pra cliente de outra empresa nem se o dado vier torto', function () {
+    $bia = $this->clients->save(Client::create(2, 'Bia', null, new PhoneNumber('5511999990001')));
+    // fatura da empresa 1 apontando pro cliente da empresa 2: o banco recusa, mas o caso de uso não confia
+    $invoice = $this->invoices->save(new Invoice(null, 1, $bia->id, 'Site', Money::brl(150000), DueDate::fromString('2026-10-10'), InvoiceStatus::Overdue));
+
+    expect(fn () => sendReminder($invoice->id))->toThrow(RuleViolation::class, "Fatura {$invoice->id} aponta pra cliente de outra empresa.")
+        ->and($this->sender->sent)->toBeEmpty()
+        ->and($this->log->attempts)->toBeEmpty();
+});
