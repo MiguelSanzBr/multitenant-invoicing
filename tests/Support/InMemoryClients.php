@@ -20,6 +20,11 @@ final class InMemoryClients implements ClientRepository
         return $client?->companyId === $this->companyId ? $client : null;
     }
 
+    public function findAcrossTenants(int $id): ?Client
+    {
+        return $this->items[$id] ?? null;
+    }
+
     public function save(Client $client): Client
     {
         $id = $client->id ?? count($this->items) + 1;

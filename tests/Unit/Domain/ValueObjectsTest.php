@@ -52,3 +52,8 @@ it('entregue é enviado ou já enviado antes', function () {
         ->and(DeliveryOutcome::RetryLater->isDelivered())->toBeFalse()
         ->and(DeliveryOutcome::Rejected->isDelivered())->toBeFalse();
 });
+
+it('Money formata em reais e outras moedas pelo código', function () {
+    expect(Money::brl(123456)->format())->toBe('R$ 1.234,56')
+        ->and(new Money(5, 'USD')->format())->toBe('USD 0,05');
+});
