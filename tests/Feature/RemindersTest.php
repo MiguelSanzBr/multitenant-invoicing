@@ -166,6 +166,17 @@ it('4xx falha o job sem retry', function () {
     expect(reminderRows()[0]['outcome'])->toBe('rejected');
 });
 
+it('202 grava sent e a segunda rodada no mesmo dia nem chama o gateway', function () {
+    Http::fake(['outbox.test/*' => Http::response([], 202)]);
+
+    runJob()->assertNotFailed();
+    runJob()->assertNotFailed();
+
+    Http::assertSentCount(1);
+    expect(reminderRows())->toHaveCount(1)
+        ->and(reminderRows()[0]['outcome'])->toBe('sent');
+});
+
 it('409 conta como já enviado e não roda de novo no mesmo dia', function () {
     Http::fake(['outbox.test/*' => Http::response(['error' => 'conflict'], 409)]);
 
