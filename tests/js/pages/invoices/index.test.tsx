@@ -1,5 +1,5 @@
 import { router } from '@inertiajs/react';
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { Invoice } from '@/types/models';
@@ -33,15 +33,53 @@ describe('invoices/index', () => {
         expect(screen.getByRole('link', { name: 'Nova fatura' })).toHaveAttribute('href', '/invoices/create');
     });
 
-    it('marca como paga só fatura em aberto ou vencida', async () => {
+    it('marca como paga só fatura em aberto ou vencida, depois de confirmar', async () => {
         const post = vi.spyOn(router, 'post').mockImplementation(() => {});
-        render(<InvoicesIndex invoices={page([invoice({ id: 1, status: 'overdue' }), invoice({ id: 2, status: 'paid', description: 'Paga' }), invoice({ id: 3, status: 'draft', description: 'Rascunho' })])} />);
+        const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+        render(<InvoicesIndex invoices={page([invoice({ id: 1, status: 'overdue', description: 'Site' }), invoice({ id: 2, status: 'paid', description: 'Paga' }), invoice({ id: 3, status: 'draft', description: 'Rascunho' })])} />);
 
-        const buttons = screen.getAllByRole('button', { name: 'Marcar como paga' });
-        expect(buttons).toHaveLength(1);
+        expect(screen.getAllByRole('button', { name: /como paga/ })).toHaveLength(1);
+        const button = screen.getByRole('button', { name: 'Marcar Site como paga' });
 
-        await userEvent.click(buttons[0]);
-        expect(post).toHaveBeenCalledWith('/invoices/1/pay', {}, { preserveScroll: true });
+        await userEvent.click(button);
+        expect(post).not.toHaveBeenCalled();
+
+        await userEvent.click(button);
+        expect(confirm).toHaveBeenLastCalledWith('Marcar a fatura Site como paga? Não dá pra desfazer.');
+        expect(post).toHaveBeenCalledWith('/invoices/1/pay', {}, expect.objectContaining({ preserveScroll: true }));
+    });
+
+    it('trava o botão enquanto o pagamento está indo, pra não mandar duas vezes', async () => {
+        let finish = () => {};
+        vi.spyOn(window, 'confirm').mockReturnValue(true);
+        const post = vi.spyOn(router, 'post').mockImplementation((_url, _data, options) => {
+            options?.onStart?.({} as never);
+            finish = () => options?.onFinish?.({} as never);
+        });
+        render(<InvoicesIndex invoices={page([invoice({ id: 1, description: 'Site' }), invoice({ id: 2, description: 'Loja' })])} />);
+
+        await userEvent.click(screen.getByRole('button', { name: 'Marcar Site como paga' }));
+
+        expect(screen.getByRole('button', { name: 'Marcar Site como paga' })).toBeDisabled();
+        expect(screen.getByRole('button', { name: 'Marcar Loja como paga' })).toBeEnabled();
+        await userEvent.click(screen.getByRole('button', { name: 'Marcar Site como paga' }));
+        expect(post).toHaveBeenCalledTimes(1);
+
+        act(() => finish());
+        expect(screen.getByRole('button', { name: 'Marcar Site como paga' })).toBeEnabled();
+    });
+
+    it('cada status tem uma cor de badge', () => {
+        render(<InvoicesIndex invoices={page([invoice({ id: 1, status: 'draft' }), invoice({ id: 2, status: 'open' }), invoice({ id: 3, status: 'paid' }), invoice({ id: 4, status: 'overdue' })])} />);
+
+        const classes = ['Rascunho', 'Em aberto', 'Paga', 'Vencida'].map((label) => screen.getByText(label, { selector: '[data-slot="badge"]' }).className);
+        expect(new Set(classes).size).toBe(4);
+    });
+
+    it('título da página é h1', () => {
+        render(<InvoicesIndex invoices={page([])} />);
+
+        expect(screen.getByRole('heading', { level: 1, name: 'Faturas' })).toBeInTheDocument();
     });
 
     it('fatura paga aparece sem link de edição', () => {

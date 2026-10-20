@@ -54,6 +54,27 @@ describe('invoices/form', () => {
         expect(post).not.toHaveBeenCalled();
     });
 
+    it('sem cliente cadastrado manda cadastrar um antes', () => {
+        render(<InvoiceForm clients={[]} />);
+
+        expect(screen.getByText(/Cadastre um cliente antes de criar a fatura/)).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'Cadastrar cliente' })).toHaveAttribute('href', '/clients/create');
+        expect(screen.queryByRole('button', { name: 'Salvar' })).not.toBeInTheDocument();
+    });
+
+    it('erro do servidor fica ligado ao campo pro leitor de tela', async () => {
+        vi.spyOn(router, 'put').mockImplementation((_url, _data, options) => {
+            options?.onError?.({ description: 'A descrição é obrigatória.' });
+        });
+        render(<InvoiceForm clients={clients} invoice={invoice} />);
+
+        await userEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+
+        const field = await screen.findByRole('textbox', { name: 'Descrição', description: 'A descrição é obrigatória.' });
+        expect(field).toHaveAttribute('aria-invalid', 'true');
+        expect(screen.getByLabelText('Valor (R$)')).toHaveAttribute('aria-invalid', 'false');
+    });
+
     it('edita fatura e mostra erro do servidor', async () => {
         vi.spyOn(router, 'put').mockImplementation((url, data, options) => {
             expect(url).toBe('/invoices/9');

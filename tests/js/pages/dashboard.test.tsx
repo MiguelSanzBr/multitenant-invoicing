@@ -20,4 +20,6 @@ it('mostra quantidade e valor por status', () => {
     expect(screen.getByRole('region', { name: 'Paga' })).toHaveTextContent('1 fatura');
     expect(screen.getByRole('region', { name: 'Vencida' })).toHaveTextContent(/123,45/);
     expect(screen.getByRole('region', { name: 'Rascunho' })).toHaveTextContent('0 faturas');
+    expect(screen.getByRole('heading', { level: 1, name: 'Painel' })).toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { level: 2 })).toHaveLength(4);
 });

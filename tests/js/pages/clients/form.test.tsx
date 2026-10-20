@@ -40,7 +40,8 @@ describe('clients/form', () => {
         await userEvent.type(screen.getByLabelText('Telefone (WhatsApp)'), '1');
         await userEvent.click(screen.getByRole('button', { name: 'Salvar' }));
 
-        expect(await screen.findByText('Telefone inválido.')).toBeInTheDocument();
+        expect(await screen.findByRole('textbox', { name: 'Telefone (WhatsApp)', description: 'Telefone inválido.' })).toHaveAttribute('aria-invalid', 'true');
+        expect(screen.getByRole('heading', { level: 1, name: 'Novo cliente' })).toBeInTheDocument();
     });
 
     it('dono exclui depois de confirmar', async () => {
