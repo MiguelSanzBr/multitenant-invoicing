@@ -22,7 +22,10 @@ paths:
     post:
       tags: [auth]
       summary: Emite um token Sanctum
-      description: O token vale 30 dias (SANCTUM_EXPIRATION, em minutos). Depois disso a API responde 401.
+      description: |
+        O token vale 30 dias (SANCTUM_EXPIRATION, em minutos). Depois disso a API responde 401.
+        Sem `abilities` o token sai só leitura (`clients:read`, `invoices:read`). Escrita precisa pedir
+        `clients:write` e/ou `invoices:write`. Limite de 6 tentativas por minuto por IP e por e-mail.
       security: []
       requestBody:
         required: true
@@ -35,6 +38,14 @@ paths:
                 email: { type: string, format: email }
                 password: { type: string }
                 device_name: { type: string, maxLength: 255 }
+                abilities:
+                  type: array
+                  items: { type: string, enum: ['clients:read', 'clients:write', 'invoices:read', 'invoices:write'] }
+            example:
+              email: dona@acme.test
+              password: password
+              device_name: cli
+              abilities: ['invoices:read', 'invoices:write']
       responses:
         '201':
           description: Token criado
@@ -44,9 +55,49 @@ paths:
                 type: object
                 required: [token]
                 properties:
-                  token: { type: string }
+                  token: { type: string, description: 'Formato {id}|mti_{segredo}' }
+              example:
+                token: 3|mti_9f2KQx1u0mVbqk3Lz8YhR2c5WnT7aJdE4sPpGv6o1a2b3c4d
         '422': { $ref: '#/components/responses/ValidationError' }
         '429': { description: Muitas tentativas }
+    get:
+      tags: [auth]
+      summary: Lista os tokens do usuário (sem o segredo)
+      responses:
+        '200':
+          description: Tokens
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, name, abilities, last_used_at, expires_at]
+                      properties:
+                        id: { type: integer }
+                        name: { type: string }
+                        abilities: { type: array, items: { type: string } }
+                        last_used_at: { type: [string, 'null'], format: date-time }
+                        expires_at: { type: [string, 'null'], format: date-time }
+              example:
+                data:
+                  - id: 3
+                    name: cli
+                    abilities: ['invoices:read', 'invoices:write']
+                    last_used_at: '2026-10-20T12:01:00+00:00'
+                    expires_at: '2026-11-19T12:00:00+00:00'
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+
+  /tokens/current:
+    delete:
+      tags: [auth]
+      summary: Revoga o token usado na chamada
+      responses:
+        '204': { description: Revogado }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
 
   /clients:
     get:
@@ -285,7 +336,7 @@ components:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
     Forbidden:
-      description: Papel sem permissão (ex. membro tentando excluir)
+      description: Papel sem permissão (ex. membro tentando excluir) ou token sem a ability da rota
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }

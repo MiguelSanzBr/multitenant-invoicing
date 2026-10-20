@@ -23,13 +23,17 @@ use App\Infrastructure\Persistence\EloquentReminderLog;
 use App\Infrastructure\Persistence\Models\Client;
 use App\Infrastructure\Persistence\Models\Invoice;
 use App\Infrastructure\Persistence\Models\Reminder;
+use App\Infrastructure\Persistence\Models\User;
 use App\Infrastructure\Queue\LaravelReminderQueue;
 use App\Infrastructure\Tenancy\AuthTenantContext;
 use Carbon\CarbonImmutable;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -63,6 +67,15 @@ class AppServiceProvider extends ServiceProvider
         Date::use(CarbonImmutable::class);
 
         DB::prohibitDestructiveCommands(app()->isProduction());
+
+        // API autenticada: 60 por minuto por usuário, pra token válido não raspar tudo nem martelar POST
+        RateLimiter::for('api', fn (Request $request) => Limit::perMinute(60)->by($request->user() instanceof User ? 'user:'.$request->user()->id : 'ip:'.$request->ip()));
+
+        // emissão de token: por IP segura password spraying, por e-mail segura stuffing vindo de vários IPs
+        RateLimiter::for('api-token', fn (Request $request) => [
+            Limit::perMinute(6)->by('ip:'.$request->ip()),
+            Limit::perMinute(6)->by('email:'.mb_strtolower($request->string('email')->value())),
+        ]);
 
         Gate::policy(Client::class, ClientPolicy::class);
         Gate::policy(Invoice::class, InvoicePolicy::class);

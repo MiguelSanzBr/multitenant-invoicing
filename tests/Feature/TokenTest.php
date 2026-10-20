@@ -50,7 +50,7 @@ it('recusa ability q não existe', function () {
 it('token tem prefixo pro secret scanning e validade gravada', function () {
     $this->travelTo(new DateTime('2026-10-20 09:00'));
 
-    expect(issueToken())->toStartWith('mti_')
+    expect(issueToken())->toMatch('/^\d+\|mti_/')
         ->and($this->user->tokens()->sole()->expires_at?->toDateString())->toBe('2026-11-19');
 });
 
@@ -77,7 +77,7 @@ it('revoga o token atual', function () {
 });
 
 it('e-mail com maiúscula entra igual ao login web', function () {
-    expect(issueToken(['email' => 'Dona@Acme.test']))->toStartWith('mti_');
+    expect(issueToken(['email' => 'Dona@Acme.test']))->toMatch('/^\d+\|mti_/');
 });
 
 it('usuário inexistente também paga o custo do hash, sem oráculo de tempo', function () {

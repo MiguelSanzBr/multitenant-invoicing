@@ -68,7 +68,8 @@ return [
     |
     */
 
-    'token_prefix' => env('SANCTUM_TOKEN_PREFIX', ''),
+    // prefixo deixa o secret scanning do GitHub reconhecer token vazado em commit
+    'token_prefix' => env('SANCTUM_TOKEN_PREFIX', 'mti_'),
 
     /*
     |--------------------------------------------------------------------------
