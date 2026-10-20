@@ -42,12 +42,11 @@ class Invoice extends Model
 
     protected function casts(): array
     {
+        // amount_cents e version já chegam como int do pdo_pgsql, sem cast
         return [
-            'amount_cents' => 'integer',
             'due_date' => 'date:Y-m-d',
             'status' => InvoiceStatus::class,
             'paid_at' => 'datetime',
-            'version' => 'integer',
         ];
     }
 

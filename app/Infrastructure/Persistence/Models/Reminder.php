@@ -30,7 +30,8 @@ class Reminder extends Model
 
     protected function casts(): array
     {
-        return ['outcome' => DeliveryOutcome::class, 'created_at' => 'datetime'];
+        // created_at já vira data sozinho (timestamps do Eloquent)
+        return ['outcome' => DeliveryOutcome::class];
     }
 
     /**

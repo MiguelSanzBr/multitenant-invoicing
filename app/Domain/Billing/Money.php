@@ -29,6 +29,6 @@ final readonly class Money
     {
         $prefix = $this->currency === 'BRL' ? 'R$' : $this->currency;
 
-        return sprintf('%s %s,%02d', $prefix, number_format(intdiv($this->cents, 100), 0, '', '.'), $this->cents % 100);
+        return sprintf('%s %s,%02d', $prefix, number_format(intdiv($this->cents, 100), thousands_separator: '.'), $this->cents % 100);
     }
 }
