@@ -6,5 +6,6 @@ it('menu aponta pras telas do app', () => {
         ['Painel', '/dashboard'],
         ['Clientes', '/clients'],
         ['Faturas', '/invoices'],
+        ['Lembretes', '/reminders'],
     ]);
 });

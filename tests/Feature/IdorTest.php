@@ -63,6 +63,15 @@ it('web: não lista fatura de outra empresa', function () {
         ->assertInertia(fn ($page) => $page->has('invoices.data', 0));
 });
 
+it('web: não lista lembrete de outra empresa', function () {
+    DB::table('reminders')->insert([
+        'company_id' => $this->victim->company_id, 'invoice_id' => $this->invoice->id,
+        'idempotency_key' => 'invoice-x', 'outcome' => 'sent',
+    ]);
+
+    $this->get(route('reminders.index'))->assertInertia(fn ($page) => $page->has('reminders.data', 0));
+});
+
 it('web: não cria fatura apontando pra cliente de outra empresa', function () {
     $this->post(route('invoices.store'), [
         'client_id' => $this->client->id, 'description' => 'Hack', 'amount_cents' => 1, 'due_date' => '2026-01-01', 'status' => 'open',
