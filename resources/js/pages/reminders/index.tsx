@@ -2,6 +2,8 @@ import { Head, Link } from '@inertiajs/react';
 import Heading from '@/components/heading';
 import Pagination from '@/components/pagination';
 import { formatDateTime } from '@/lib/invoices';
+import invoicesRoutes from '@/routes/invoices';
+import remindersRoutes from '@/routes/reminders';
 import type { Paginated, Reminder, ReminderOutcome } from '@/types/models';
 
 const outcomeLabels: Record<ReminderOutcome, string> = {
@@ -39,7 +41,7 @@ export default function RemindersIndex({ reminders }: { reminders: Paginated<Rem
                                     <tr key={reminder.id} className="border-t">
                                         <td className="p-3 whitespace-nowrap">{formatDateTime(reminder.created_at)}</td>
                                         <td className="p-3 underline-offset-4 hover:underline">
-                                            <Link href={`/invoices/${reminder.invoice.id}/edit`}>{reminder.invoice.description}</Link>
+                                            <Link href={invoicesRoutes.edit.url(reminder.invoice.id)}>{reminder.invoice.description}</Link>
                                         </td>
                                         <td className="p-3">{reminder.invoice.client.name}</td>
                                         <td className="p-3">{outcomeLabels[reminder.outcome]}</td>
@@ -53,10 +55,10 @@ export default function RemindersIndex({ reminders }: { reminders: Paginated<Rem
                     </div>
                 )}
 
-                <Pagination prev={reminders.prev_page_url} next={reminders.next_page_url} />
+                <Pagination page={reminders} />
             </div>
         </>
     );
 }
 
-RemindersIndex.layout = { breadcrumbs: [{ title: 'Lembretes', href: '/reminders' }] };
+RemindersIndex.layout = { breadcrumbs: [{ title: 'Lembretes', href: remindersRoutes.index.url() }] };

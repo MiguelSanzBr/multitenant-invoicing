@@ -25,6 +25,13 @@ it('no meio mostra as duas', () => {
     expect(screen.getByRole('link', { name: 'Próxima' })).toHaveAttribute('href', '/x?page=3');
 });
 
+it('na última página só mostra a anterior', () => {
+    render(<Pagination page={page(3, 3, '/x?page=2', null)} />);
+
+    expect(screen.getByRole('link', { name: 'Anterior' })).toHaveAttribute('href', '/x?page=2');
+    expect(screen.queryByRole('link', { name: 'Próxima' })).not.toBeInTheDocument();
+});
+
 it('sem outras páginas não renderiza nada', () => {
     const { container } = render(<Pagination page={page(1, 1, null, null)} />);
 

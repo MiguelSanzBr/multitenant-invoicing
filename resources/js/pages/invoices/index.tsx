@@ -1,14 +1,29 @@
 import { Head, Link, router } from '@inertiajs/react';
+import { useState } from 'react';
 import Heading from '@/components/heading';
 import Pagination from '@/components/pagination';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { formatDate, statusLabels } from '@/lib/invoices';
+import { formatDate, statusLabels, statusVariant } from '@/lib/invoices';
 import { formatBRL } from '@/lib/money';
+import invoicesRoutes from '@/routes/invoices';
 import type { Invoice, Paginated } from '@/types/models';
 
 export default function InvoicesIndex({ invoices }: { invoices: Paginated<Invoice> }) {
-    const pay = (invoice: Invoice) => router.post(`/invoices/${invoice.id}/pay`, {}, { preserveScroll: true });
+    // fatura sendo paga agora: o botão dela trava até a resposta, sem POST duplicado no duplo clique
+    const [paying, setPaying] = useState<number | null>(null);
+
+    const pay = (invoice: Invoice) => {
+        if (paying !== null || !window.confirm(`Marcar a fatura ${invoice.description} como paga? Não dá pra desfazer.`)) {
+            return;
+        }
+
+        router.post(invoicesRoutes.pay.url(invoice.id), {}, {
+            preserveScroll: true,
+            onStart: () => setPaying(invoice.id),
+            onFinish: () => setPaying(null),
+        });
+    };
 
     return (
         <>
@@ -17,7 +32,7 @@ export default function InvoicesIndex({ invoices }: { invoices: Paginated<Invoic
                 <div className="flex flex-wrap items-start justify-between gap-2">
                     <Heading title="Faturas" />
                     <Button asChild>
-                        <Link href="/invoices/create">Nova fatura</Link>
+                        <Link href={invoicesRoutes.create.url()}>Nova fatura</Link>
                     </Button>
                 </div>
 
@@ -43,7 +58,7 @@ export default function InvoicesIndex({ invoices }: { invoices: Paginated<Invoic
                                             {invoice.status === 'paid' ? (
                                                 invoice.description
                                             ) : (
-                                                <Link href={`/invoices/${invoice.id}/edit`} className="underline-offset-4 hover:underline">
+                                                <Link href={invoicesRoutes.edit.url(invoice.id)} className="underline-offset-4 hover:underline">
                                                     {invoice.description}
                                                 </Link>
                                             )}
@@ -52,13 +67,19 @@ export default function InvoicesIndex({ invoices }: { invoices: Paginated<Invoic
                                         <td className="p-3 text-right whitespace-nowrap">{formatBRL(invoice.amount_cents)}</td>
                                         <td className="p-3">{formatDate(invoice.due_date)}</td>
                                         <td className="p-3">
-                                            <Badge variant={invoice.status === 'overdue' ? 'destructive' : 'secondary'}>
+                                            <Badge variant={statusVariant[invoice.status]}>
                                                 {statusLabels[invoice.status]}
                                             </Badge>
                                         </td>
                                         <td className="p-3 text-right">
                                             {(invoice.status === 'open' || invoice.status === 'overdue') && (
-                                                <Button size="sm" variant="outline" onClick={() => pay(invoice)}>
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() => pay(invoice)}
+                                                    disabled={paying === invoice.id}
+                                                    aria-label={`Marcar ${invoice.description} como paga`}
+                                                >
                                                     Marcar como paga
                                                 </Button>
                                             )}
@@ -70,10 +91,10 @@ export default function InvoicesIndex({ invoices }: { invoices: Paginated<Invoic
                     </div>
                 )}
 
-                <Pagination prev={invoices.prev_page_url} next={invoices.next_page_url} />
+                <Pagination page={invoices} />
             </div>
         </>
     );
 }
 
-InvoicesIndex.layout = { breadcrumbs: [{ title: 'Faturas', href: '/invoices' }] };
+InvoicesIndex.layout = { breadcrumbs: [{ title: 'Faturas', href: invoicesRoutes.index.url() }] };

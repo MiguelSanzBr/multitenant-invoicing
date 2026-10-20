@@ -1,6 +1,7 @@
 import type { HTMLAttributes } from 'react';
 import { cn } from '@/lib/utils';
 
+// com `id`, o campo aponta pra cá via aria-describedby (ver lib/forms.ts)
 export default function InputError({
     message,
     className = '',

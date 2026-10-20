@@ -1,3 +1,4 @@
+// variante default é o título da página (h1); small é subtítulo de seção (h2)
 export default function Heading({
     title,
     description,
@@ -7,9 +8,11 @@ export default function Heading({
     description?: string;
     variant?: 'default' | 'small';
 }) {
+    const Tag = variant === 'small' ? 'h2' : 'h1';
+
     return (
         <header className={variant === 'small' ? '' : 'mb-8 space-y-0.5'}>
-            <h2
+            <Tag
                 className={
                     variant === 'small'
                         ? 'mb-0.5 text-base font-medium'
@@ -17,7 +20,7 @@ export default function Heading({
                 }
             >
                 {title}
-            </h2>
+            </Tag>
             {description && (
                 <p className="text-sm text-muted-foreground">{description}</p>
             )}

@@ -1,4 +1,4 @@
-import { Head, router, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import Heading from '@/components/heading';
@@ -6,7 +6,10 @@ import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { errorProps } from '@/lib/forms';
 import { centsToInput, parseBRL } from '@/lib/money';
+import clientsRoutes from '@/routes/clients';
+import invoicesRoutes from '@/routes/invoices';
 import type { Invoice } from '@/types/models';
 
 type Props = {
@@ -40,11 +43,7 @@ export default function InvoiceForm({ invoice, clients }: Props) {
             return;
         }
 
-        if (invoice) {
-            form.put(`/invoices/${invoice.id}`);
-        } else {
-            form.post('/invoices');
-        }
+        form.submit(invoice ? invoicesRoutes.update(invoice.id) : invoicesRoutes.store());
     };
 
     const changeAmount = (text: string) => {
@@ -54,11 +53,26 @@ export default function InvoiceForm({ invoice, clients }: Props) {
 
     const destroy = () => {
         if (invoice && window.confirm(`Excluir a fatura ${invoice.description}?`)) {
-            router.delete(`/invoices/${invoice.id}`);
+            router.delete(invoicesRoutes.destroy.url(invoice.id));
         }
     };
 
     const title = invoice ? 'Editar fatura' : 'Nova fatura';
+
+    if (clients.length === 0) {
+        return (
+            <>
+                <Head title={title} />
+                <div className="flex max-w-xl flex-col gap-4 p-4">
+                    <Heading title={title} />
+                    <p className="text-muted-foreground">Cadastre um cliente antes de criar a fatura.</p>
+                    <Button asChild className="w-fit">
+                        <Link href={clientsRoutes.create.url()}>Cadastrar cliente</Link>
+                    </Button>
+                </div>
+            </>
+        );
+    }
 
     return (
         <>
@@ -70,41 +84,41 @@ export default function InvoiceForm({ invoice, clients }: Props) {
                 <fieldset disabled={locked} className="flex flex-col gap-4">
                     <div className="grid gap-2">
                         <Label htmlFor="client_id">Cliente</Label>
-                        <select id="client_id" className={selectClass} value={form.data.client_id} onChange={(e) => form.setData('client_id', e.target.value)} required>
+                        <select id="client_id" {...errorProps('client_id', form.errors.client_id)} className={selectClass} value={form.data.client_id} onChange={(e) => form.setData('client_id', e.target.value)} required>
                             <option value="">Selecione</option>
                             {clients.map((client) => (
                                 <option key={client.id} value={client.id}>{client.name}</option>
                             ))}
                         </select>
-                        <InputError message={form.errors.client_id} />
+                        <InputError id="client_id-error" message={form.errors.client_id} />
                     </div>
 
                     <div className="grid gap-2">
                         <Label htmlFor="description">Descrição</Label>
-                        <Input id="description" value={form.data.description} onChange={(e) => form.setData('description', e.target.value)} required />
-                        <InputError message={form.errors.description} />
+                        <Input id="description" {...errorProps('description', form.errors.description)} value={form.data.description} onChange={(e) => form.setData('description', e.target.value)} required />
+                        <InputError id="description-error" message={form.errors.description} />
                     </div>
 
                     <div className="grid gap-2">
                         <Label htmlFor="amount">Valor (R$)</Label>
-                        <Input id="amount" inputMode="decimal" placeholder="1.234,56" value={amount} onChange={(e) => changeAmount(e.target.value)} required />
-                        <InputError message={form.errors.amount_cents} />
+                        <Input id="amount" {...errorProps('amount', form.errors.amount_cents)} inputMode="decimal" placeholder="1.234,56" value={amount} onChange={(e) => changeAmount(e.target.value)} required />
+                        <InputError id="amount-error" message={form.errors.amount_cents} />
                     </div>
 
                     <div className="grid gap-2">
                         <Label htmlFor="due_date">Vencimento</Label>
-                        <Input id="due_date" type="date" value={form.data.due_date} onChange={(e) => form.setData('due_date', e.target.value)} required />
-                        <InputError message={form.errors.due_date} />
+                        <Input id="due_date" type="date" {...errorProps('due_date', form.errors.due_date)} value={form.data.due_date} onChange={(e) => form.setData('due_date', e.target.value)} required />
+                        <InputError id="due_date-error" message={form.errors.due_date} />
                     </div>
 
                     {canChangeStatus ? (
                         <div className="grid gap-2">
                             <Label htmlFor="status">Status</Label>
-                            <select id="status" className={selectClass} value={form.data.status} onChange={(e) => form.setData('status', e.target.value as Invoice['status'])}>
+                            <select id="status" {...errorProps('status', form.errors.status)} className={selectClass} value={form.data.status} onChange={(e) => form.setData('status', e.target.value as Invoice['status'])}>
                                 <option value="draft">Rascunho</option>
                                 <option value="open">Em aberto</option>
                             </select>
-                            <InputError message={form.errors.status} />
+                            <InputError id="status-error" message={form.errors.status} />
                         </div>
                     ) : (
                         invoice?.status === 'overdue' && (
@@ -126,4 +140,4 @@ export default function InvoiceForm({ invoice, clients }: Props) {
     );
 }
 
-InvoiceForm.layout = { breadcrumbs: [{ title: 'Faturas', href: '/invoices' }] };
+InvoiceForm.layout = { breadcrumbs: [{ title: 'Faturas', href: invoicesRoutes.index.url() }] };

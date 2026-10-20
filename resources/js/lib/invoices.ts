@@ -7,6 +7,14 @@ export const statusLabels: Record<InvoiceStatus, string> = {
     overdue: 'Vencida',
 };
 
+// cada status com cor própria pra ler a lista de relance
+export const statusVariant: Record<InvoiceStatus, 'outline' | 'secondary' | 'default' | 'destructive'> = {
+    draft: 'outline',
+    open: 'secondary',
+    paid: 'default',
+    overdue: 'destructive',
+};
+
 export const formatDate = (isoDate: string): string => isoDate.split('-').reverse().join('/');
 
 const dateTime = new Intl.DateTimeFormat('pt-BR', {

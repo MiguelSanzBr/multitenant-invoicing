@@ -5,6 +5,8 @@ import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { errorProps } from '@/lib/forms';
+import clientsRoutes from '@/routes/clients';
 import type { Client } from '@/types/models';
 
 export default function ClientForm({ client }: { client?: Client }) {
@@ -18,16 +20,12 @@ export default function ClientForm({ client }: { client?: Client }) {
     const submit = (event: FormEvent) => {
         event.preventDefault();
 
-        if (client) {
-            form.put(`/clients/${client.id}`);
-        } else {
-            form.post('/clients');
-        }
+        form.submit(client ? clientsRoutes.update(client.id) : clientsRoutes.store());
     };
 
     const destroy = () => {
         if (client && window.confirm(`Excluir ${client.name}?`)) {
-            router.delete(`/clients/${client.id}`);
+            router.delete(clientsRoutes.destroy.url(client.id));
         }
     };
 
@@ -41,20 +39,20 @@ export default function ClientForm({ client }: { client?: Client }) {
 
                 <div className="grid gap-2">
                     <Label htmlFor="name">Nome</Label>
-                    <Input id="name" value={form.data.name} onChange={(e) => form.setData('name', e.target.value)} required />
-                    <InputError message={form.errors.name} />
+                    <Input id="name" {...errorProps('name', form.errors.name)} value={form.data.name} onChange={(e) => form.setData('name', e.target.value)} required />
+                    <InputError id="name-error" message={form.errors.name} />
                 </div>
 
                 <div className="grid gap-2">
                     <Label htmlFor="email">E-mail</Label>
-                    <Input id="email" type="email" value={form.data.email} onChange={(e) => form.setData('email', e.target.value)} />
-                    <InputError message={form.errors.email} />
+                    <Input id="email" {...errorProps('email', form.errors.email)} type="email" value={form.data.email} onChange={(e) => form.setData('email', e.target.value)} />
+                    <InputError id="email-error" message={form.errors.email} />
                 </div>
 
                 <div className="grid gap-2">
                     <Label htmlFor="phone">Telefone (WhatsApp)</Label>
-                    <Input id="phone" type="tel" inputMode="tel" value={form.data.phone} onChange={(e) => form.setData('phone', e.target.value)} required />
-                    <InputError message={form.errors.phone} />
+                    <Input id="phone" {...errorProps('phone', form.errors.phone)} type="tel" inputMode="tel" value={form.data.phone} onChange={(e) => form.setData('phone', e.target.value)} required />
+                    <InputError id="phone-error" message={form.errors.phone} />
                 </div>
 
                 <div className="flex gap-2">
@@ -68,4 +66,4 @@ export default function ClientForm({ client }: { client?: Client }) {
     );
 }
 
-ClientForm.layout = { breadcrumbs: [{ title: 'Clientes', href: '/clients' }] };
+ClientForm.layout = { breadcrumbs: [{ title: 'Clientes', href: clientsRoutes.index.url() }] };

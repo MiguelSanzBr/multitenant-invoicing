@@ -2,6 +2,7 @@ import { Head } from '@inertiajs/react';
 import Heading from '@/components/heading';
 import { statusLabels } from '@/lib/invoices';
 import { formatBRL } from '@/lib/money';
+import { dashboard } from '@/routes';
 import type { InvoiceStatus } from '@/types/models';
 
 type Props = {
@@ -19,9 +20,9 @@ export default function Dashboard({ totals }: Props) {
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     {order.map((status) => (
                         <section key={status} aria-labelledby={`total-${status}`} className="rounded-xl border p-4">
-                            <h3 id={`total-${status}`} className="text-sm text-muted-foreground">
+                            <h2 id={`total-${status}`} className="text-sm text-muted-foreground">
                                 {statusLabels[status]}
-                            </h3>
+                            </h2>
                             <p className="mt-2 text-2xl font-semibold">{formatBRL(totals[status].amount_cents)}</p>
                             <p className="text-sm text-muted-foreground">
                                 {totals[status].count} {totals[status].count === 1 ? 'fatura' : 'faturas'}
@@ -34,4 +35,4 @@ export default function Dashboard({ totals }: Props) {
     );
 }
 
-Dashboard.layout = { breadcrumbs: [{ title: 'Painel', href: '/dashboard' }] };
+Dashboard.layout = { breadcrumbs: [{ title: 'Painel', href: dashboard.url() }] };

@@ -2,6 +2,7 @@ import { Head, Link } from '@inertiajs/react';
 import Heading from '@/components/heading';
 import Pagination from '@/components/pagination';
 import { Button } from '@/components/ui/button';
+import clientsRoutes from '@/routes/clients';
 import type { Client, Paginated } from '@/types/models';
 
 export default function ClientsIndex({ clients }: { clients: Paginated<Client> }) {
@@ -12,7 +13,7 @@ export default function ClientsIndex({ clients }: { clients: Paginated<Client> }
                 <div className="flex flex-wrap items-start justify-between gap-2">
                     <Heading title="Clientes" />
                     <Button asChild>
-                        <Link href="/clients/create">Novo cliente</Link>
+                        <Link href={clientsRoutes.create.url()}>Novo cliente</Link>
                     </Button>
                 </div>
 
@@ -32,7 +33,7 @@ export default function ClientsIndex({ clients }: { clients: Paginated<Client> }
                                 {clients.data.map((client) => (
                                     <tr key={client.id} className="border-t">
                                         <td className="p-3 font-medium underline-offset-4 hover:underline">
-                                            <Link href={`/clients/${client.id}/edit`}>{client.name}</Link>
+                                            <Link href={clientsRoutes.edit.url(client.id)}>{client.name}</Link>
                                         </td>
                                         <td className="p-3">{client.email}</td>
                                         <td className="p-3">{client.phone}</td>
@@ -43,10 +44,10 @@ export default function ClientsIndex({ clients }: { clients: Paginated<Client> }
                     </div>
                 )}
 
-                <Pagination prev={clients.prev_page_url} next={clients.next_page_url} />
+                <Pagination page={clients} />
             </div>
         </>
     );
 }
 
-ClientsIndex.layout = { breadcrumbs: [{ title: 'Clientes', href: '/clients' }] };
+ClientsIndex.layout = { breadcrumbs: [{ title: 'Clientes', href: clientsRoutes.index.url() }] };
