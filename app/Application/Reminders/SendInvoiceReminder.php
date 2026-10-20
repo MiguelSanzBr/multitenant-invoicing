@@ -13,6 +13,7 @@ use App\Domain\Reminders\IdempotencyKey;
 use App\Domain\Reminders\ReminderAttempt;
 use App\Domain\Reminders\ReminderLog;
 use App\Domain\Reminders\ReminderSender;
+use App\Domain\RuleViolation;
 use DateTimeImmutable;
 
 final readonly class SendInvoiceReminder
@@ -42,6 +43,11 @@ final readonly class SendInvoiceReminder
         }
 
         $client = $this->clients->findAcrossTenants($invoice->clientId) ?? throw new NotFound("Cliente {$invoice->clientId}");
+
+        // o banco já recusa (FK composta), mas o job roda sem tenant e um SMS errado não tem volta
+        if ($client->companyId !== $invoice->companyId) {
+            throw new RuleViolation("Fatura $invoiceId aponta pra cliente de outra empresa.");
+        }
         $body = sprintf('Olá %s, a fatura "%s" de %s venceu em %s.',
             $client->name, $invoice->description, $invoice->amount->format(), $invoice->dueDate->toBrazilian());
 

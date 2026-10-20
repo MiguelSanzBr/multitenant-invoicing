@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Infrastructure\Queue;
 
 use App\Application\Reminders\SendInvoiceReminder;
+use App\Domain\NotFound;
 use App\Domain\Reminders\DeliveryOutcome;
 use App\Domain\Reminders\IdempotencyKey;
+use App\Domain\RuleViolation;
 use DateTimeImmutable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -44,7 +46,14 @@ final class SendInvoiceReminderJob implements ShouldBeUnique, ShouldQueue
 
     public function handle(SendInvoiceReminder $send): void
     {
-        $result = $send($this->invoiceId, new DateTimeImmutable($this->day));
+        try {
+            $result = $send($this->invoiceId, new DateTimeImmutable($this->day));
+        } catch (NotFound|RuleViolation $e) {
+            // dado q não fecha não melhora tentando de novo
+            $this->fail($e);
+
+            return;
+        }
 
         if ($result?->outcome === DeliveryOutcome::RetryLater) {
             throw new RuntimeException("Outbox indisponível ({$result->httpStatus}): {$result->error}");
