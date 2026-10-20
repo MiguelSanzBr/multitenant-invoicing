@@ -10,12 +10,14 @@ use App\Domain\Reminders\ReminderSender;
 use App\Domain\Tenancy\TenantContext;
 use App\Http\Policies\ClientPolicy;
 use App\Http\Policies\InvoicePolicy;
+use App\Http\Policies\ReminderPolicy;
 use App\Infrastructure\Outbox\OutboxReminderSender;
 use App\Infrastructure\Persistence\EloquentClientRepository;
 use App\Infrastructure\Persistence\EloquentInvoiceRepository;
 use App\Infrastructure\Persistence\EloquentReminderLog;
 use App\Infrastructure\Persistence\Models\Client;
 use App\Infrastructure\Persistence\Models\Invoice;
+use App\Infrastructure\Persistence\Models\Reminder;
 use App\Infrastructure\Queue\LaravelReminderQueue;
 use App\Infrastructure\Tenancy\AuthTenantContext;
 use Carbon\CarbonImmutable;
@@ -48,5 +50,6 @@ class AppServiceProvider extends ServiceProvider
 
         Gate::policy(Client::class, ClientPolicy::class);
         Gate::policy(Invoice::class, InvoicePolicy::class);
+        Gate::policy(Reminder::class, ReminderPolicy::class);
     }
 }

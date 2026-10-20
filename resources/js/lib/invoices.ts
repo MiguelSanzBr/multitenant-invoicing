@@ -8,3 +8,11 @@ export const statusLabels: Record<InvoiceStatus, string> = {
 };
 
 export const formatDate = (isoDate: string): string => isoDate.split('-').reverse().join('/');
+
+const dateTime = new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    dateStyle: 'short',
+    timeStyle: 'short',
+});
+
+export const formatDateTime = (iso: string): string => dateTime.format(new Date(iso)).replace(',', '');
