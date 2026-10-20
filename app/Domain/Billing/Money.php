@@ -21,4 +21,12 @@ final readonly class Money
     {
         return new self($cents, 'BRL');
     }
+
+    // conta com inteiro, sem float no meio
+    public function format(): string
+    {
+        $prefix = $this->currency === 'BRL' ? 'R$' : $this->currency;
+
+        return sprintf('%s %s,%02d', $prefix, number_format(intdiv($this->cents, 100), 0, '', '.'), $this->cents % 100);
+    }
 }

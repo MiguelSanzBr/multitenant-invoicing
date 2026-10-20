@@ -5,9 +5,11 @@ namespace App\Infrastructure\Persistence;
 use App\Domain\Billing\DueDate;
 use App\Domain\Billing\Invoice;
 use App\Domain\Billing\InvoiceRepository;
+use App\Domain\Billing\InvoiceStatus;
 use App\Domain\Billing\Money;
 use App\Infrastructure\Persistence\Models\Invoice as InvoiceModel;
 use App\Infrastructure\Persistence\Models\Scopes\CompanyScope;
+use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Builder;
 
 final class EloquentInvoiceRepository implements InvoiceRepository
@@ -15,6 +17,13 @@ final class EloquentInvoiceRepository implements InvoiceRepository
     public function find(int $id): ?Invoice
     {
         $model = InvoiceModel::find($id);
+
+        return $model ? $this->toDomain($model) : null;
+    }
+
+    public function findAcrossTenants(int $id): ?Invoice
+    {
+        $model = $this->allTenants()->find($id);
 
         return $model ? $this->toDomain($model) : null;
     }
@@ -44,6 +53,27 @@ final class EloquentInvoiceRepository implements InvoiceRepository
     public function existsForClient(int $clientId): bool
     {
         return InvoiceModel::where('client_id', $clientId)->exists();
+    }
+
+    public function openPastDue(DateTimeImmutable $today): array
+    {
+        return array_values($this->allTenants()
+            ->where('status', InvoiceStatus::Open)
+            ->where('due_date', '<', $today->format('Y-m-d'))
+            ->orderBy('id')
+            ->get()
+            ->map(fn (InvoiceModel $model) => $this->toDomain($model))
+            ->all());
+    }
+
+    public function overdueIds(): array
+    {
+        return array_values($this->allTenants()
+            ->where('status', InvoiceStatus::Overdue)
+            ->orderBy('id')
+            ->get(['id'])
+            ->map(fn (InvoiceModel $model) => $model->id)
+            ->all());
     }
 
     /**

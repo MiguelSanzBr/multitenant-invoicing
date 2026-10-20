@@ -28,6 +28,12 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    // gateway de mensagens do outbox-gateway-demo, sem ele os lembretes falham e voltam pra fila
+    'outbox' => [
+        'url' => env('OUTBOX_URL', 'http://outbox-gateway:8080'),
+        'timeout' => (int) env('OUTBOX_TIMEOUT', 10),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

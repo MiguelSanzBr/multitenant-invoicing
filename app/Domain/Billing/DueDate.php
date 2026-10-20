@@ -27,6 +27,11 @@ final readonly class DueDate implements Stringable
         return $this->date < $day->format('Y-m-d');
     }
 
+    public function toBrazilian(): string
+    {
+        return implode('/', array_reverse(explode('-', $this->date)));
+    }
+
     public function __toString(): string
     {
         return $this->date;

@@ -18,6 +18,13 @@ final class EloquentClientRepository implements ClientRepository
         return $model ? $this->toDomain($model) : null;
     }
 
+    public function findAcrossTenants(int $id): ?Client
+    {
+        $model = ClientModel::withoutGlobalScope(CompanyScope::class)->find($id);
+
+        return $model ? $this->toDomain($model) : null;
+    }
+
     public function save(Client $client): Client
     {
         $model = $client->id === null ? new ClientModel : $this->owned($client)->firstOrFail();

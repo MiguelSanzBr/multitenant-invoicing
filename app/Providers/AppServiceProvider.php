@@ -4,13 +4,19 @@ namespace App\Providers;
 
 use App\Domain\Billing\ClientRepository;
 use App\Domain\Billing\InvoiceRepository;
+use App\Domain\Reminders\ReminderLog;
+use App\Domain\Reminders\ReminderQueue;
+use App\Domain\Reminders\ReminderSender;
 use App\Domain\Tenancy\TenantContext;
 use App\Http\Policies\ClientPolicy;
 use App\Http\Policies\InvoicePolicy;
+use App\Infrastructure\Outbox\OutboxReminderSender;
 use App\Infrastructure\Persistence\EloquentClientRepository;
 use App\Infrastructure\Persistence\EloquentInvoiceRepository;
+use App\Infrastructure\Persistence\EloquentReminderLog;
 use App\Infrastructure\Persistence\Models\Client;
 use App\Infrastructure\Persistence\Models\Invoice;
+use App\Infrastructure\Queue\LaravelReminderQueue;
 use App\Infrastructure\Tenancy\AuthTenantContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
@@ -29,6 +35,9 @@ class AppServiceProvider extends ServiceProvider
         ClientRepository::class => EloquentClientRepository::class,
         InvoiceRepository::class => EloquentInvoiceRepository::class,
         TenantContext::class => AuthTenantContext::class,
+        ReminderSender::class => OutboxReminderSender::class,
+        ReminderLog::class => EloquentReminderLog::class,
+        ReminderQueue::class => LaravelReminderQueue::class,
     ];
 
     public function boot(): void
