@@ -3,6 +3,7 @@
 use App\Domain\Billing\InvoiceStatus;
 use App\Infrastructure\Persistence\Models\Invoice;
 use App\Infrastructure\Persistence\Models\User;
+use Database\Factories\InvoiceFactory;
 
 it('seed cria duas empresas com dono e membro que conseguem entrar', function () {
     $this->seed();
@@ -21,4 +22,13 @@ it('mensagens de validação em português', function () {
     $this->actingAs(User::factory()->create())
         ->post(route('clients.store'), [])
         ->assertSessionHasErrors(['name' => 'O campo nome é obrigatório.']);
+});
+
+it('seed usa descrições de fatura em português', function () {
+    $this->seed();
+
+    $descriptions = Invoice::withoutGlobalScopes()->distinct()->pluck('description')->all();
+
+    expect($descriptions)->not->toBeEmpty()
+        ->and(array_diff($descriptions, InvoiceFactory::DESCRIPTIONS))->toBeEmpty();
 });
