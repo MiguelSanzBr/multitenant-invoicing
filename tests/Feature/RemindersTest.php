@@ -310,6 +310,22 @@ it('comando de ponta a ponta com a fila síncrona grava o envio', function () {
     expect(reminderRows()[0]['outcome'])->toBe('sent');
 });
 
+it('com duas empresas cada SMS vai pro cliente da própria empresa e o log fica na empresa certa', function () {
+    Http::fake(['outbox.test/*' => Http::response([], 202)]);
+    $otherClient = Client::factory()->create(['name' => 'Bia', 'phone' => '5521988887777']);
+    $other = Invoice::factory()->for($otherClient)->create(['description' => 'Loja', 'due_date' => '2026-10-15', 'status' => InvoiceStatus::Open]);
+
+    $this->artisan('invoices:mark-overdue')->assertSuccessful();
+
+    Http::assertSentCount(2);
+    Http::assertSent(fn (Request $request) => $request['recipient'] === '5511999990000' && str_contains($request['body'], '"Site"'));
+    Http::assertSent(fn (Request $request) => $request['recipient'] === '5521988887777' && str_contains($request['body'], '"Loja"'));
+    expect(DB::table('reminders')->orderBy('invoice_id')->get(['company_id', 'invoice_id'])->map(fn ($row) => (array) $row)->all())->toBe([
+        ['company_id' => $this->invoice->company_id, 'invoice_id' => $this->invoice->id],
+        ['company_id' => $other->company_id, 'invoice_id' => $other->id],
+    ])->and($other->company_id)->not->toBe($this->invoice->company_id);
+});
+
 it('comando está agendado todo dia às 9h', function () {
     $event = collect(app(Schedule::class)->events())
         ->first(fn ($event) => str_contains((string) $event->command, 'invoices:mark-overdue'));

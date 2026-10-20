@@ -84,6 +84,21 @@ it('web: lista só as faturas e os lembretes da própria empresa', function () {
         ->assertInertia(fn ($page) => $page->has('reminders.data', 1)->where('reminders.data.0.idempotency_key', 'invoice-meu'));
 });
 
+it('não move fatura própria pra cliente de outra empresa, nem pela web nem pela API', function () {
+    $mine = Client::factory()->for($this->intruder->company)->create();
+    $invoice = Invoice::factory()->for($mine)->create(['description' => 'Minha']);
+    $data = ['client_id' => $this->client->id, 'description' => 'Movida', 'amount_cents' => 1, 'due_date' => '2026-01-01', 'status' => 'open'];
+
+    $this->put(route('invoices.update', $invoice), $data)->assertSessionHasErrors('client_id');
+    $this->withToken($this->intruder->createToken('t')->plainTextToken)
+        ->putJson("/api/v1/invoices/{$invoice->id}", $data)
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('client_id');
+
+    expect($invoice->fresh()?->client_id)->toBe($mine->id)
+        ->and($invoice->fresh()?->description)->toBe('Minha');
+});
+
 it('web: não cria fatura apontando pra cliente de outra empresa', function () {
     $this->post(route('invoices.store'), [
         'client_id' => $this->client->id, 'description' => 'Hack', 'amount_cents' => 1, 'due_date' => '2026-01-01', 'status' => 'open',
