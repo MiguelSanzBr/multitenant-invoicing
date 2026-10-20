@@ -33,6 +33,7 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
@@ -76,6 +77,9 @@ class AppServiceProvider extends ServiceProvider
             Limit::perMinute(6)->by('ip:'.$request->ip()),
             Limit::perMinute(6)->by('email:'.mb_strtolower($request->string('email')->value())),
         ]);
+
+        // sinal de vida pro healthcheck do compose: worker travado ou morto para de tocar o arquivo
+        Queue::looping(fn () => touch(storage_path('framework/queue-heartbeat')));
 
         Gate::policy(Client::class, ClientPolicy::class);
         Gate::policy(Invoice::class, InvoicePolicy::class);

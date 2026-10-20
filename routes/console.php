@@ -9,3 +9,6 @@ use Illuminate\Support\Facades\Schedule;
 Schedule::command('invoices:mark-overdue')->dailyAt('09:00')->onOneServer()->withoutOverlapping(60);
 
 Schedule::command('sanctum:prune-expired --hours=24')->dailyAt('03:00')->onOneServer();
+
+// sinal de vida pro healthcheck do compose
+Schedule::call(fn () => touch(storage_path('framework/schedule-heartbeat')))->everyMinute()->name('heartbeat do scheduler');
