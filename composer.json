@@ -1,11 +1,13 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "laravel/react-starter-kit",
+    "name": "miguelsanzbr/multitenant-invoicing",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
+    "description": "SaaS multi-tenant de faturamento com lembretes idempotentes via outbox-gateway-demo.",
     "keywords": [
         "laravel",
-        "framework"
+        "inertia",
+        "multi-tenant",
+        "invoicing"
     ],
     "license": "MIT",
     "require": {
@@ -100,8 +102,7 @@
         "laravel": {
             "dont-discover": [],
             "installer": {
-                "post-create-project": [
-                ]
+                "post-create-project": []
             }
         }
     },
