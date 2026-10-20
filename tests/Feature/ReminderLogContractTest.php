@@ -18,13 +18,16 @@ dataset('reminder logs', [
 ]);
 
 beforeEach(function () {
+    $this->travelTo(new DateTime('2026-10-20 09:00'));
     $this->invoice = Invoice::factory()->create();
     $this->key = IdempotencyKey::forInvoice($this->invoice->id, new DateTimeImmutable('2026-10-20'));
 });
 
-function attempt(DeliveryOutcome $outcome, ?IdempotencyKey $key = null): ReminderAttempt
+function attempt(DeliveryOutcome $outcome, ?IdempotencyKey $key = null, ?Invoice $invoice = null): ReminderAttempt
 {
-    return new ReminderAttempt(test()->invoice->company_id, test()->invoice->id, $key ?? test()->key, new DeliveryResult($outcome, 202));
+    $invoice ??= test()->invoice;
+
+    return new ReminderAttempt($invoice->company_id, $invoice->id, $key ?? test()->key, new DeliveryResult($outcome, 202));
 }
 
 it('entregue é sent ou already_sent, por chave', function (ReminderLog $log) {
@@ -45,4 +48,30 @@ it('retry e recusa não contam como entregue', function (ReminderLog $log) {
     $log->record(attempt(DeliveryOutcome::Rejected));
 
     expect($log->alreadyDelivered($this->key))->toBeFalse();
+})->with('reminder logs');
+
+it('conta lembretes entregues por fatura, uma vez por chave', function (ReminderLog $log) {
+    $day = fn (string $d) => IdempotencyKey::forInvoice($this->invoice->id, new DateTimeImmutable($d));
+    $log->record(attempt(DeliveryOutcome::RetryLater));
+    $log->record(attempt(DeliveryOutcome::Sent));
+    $log->record(attempt(DeliveryOutcome::AlreadySent)); // mesma chave, não é outro lembrete
+    $log->record(attempt(DeliveryOutcome::Sent, $day('2026-10-21')));
+    $log->record(attempt(DeliveryOutcome::Rejected, $day('2026-10-22')));
+
+    expect($log->deliveredCount($this->invoice->id))->toBe(2)
+        ->and($log->deliveredCount($this->invoice->id + 1000))->toBe(0);
+})->with('reminder logs');
+
+it('conta lembretes entregues da empresa no dia', function (ReminderLog $log) {
+    $sibling = Invoice::factory()->for($this->invoice->client)->create();
+    $other = Invoice::factory()->create();
+    $today = new DateTimeImmutable('2026-10-20');
+    $log->record(attempt(DeliveryOutcome::Sent));
+    $log->record(attempt(DeliveryOutcome::Sent, IdempotencyKey::forInvoice($sibling->id, $today), $sibling));
+    $log->record(attempt(DeliveryOutcome::RetryLater, IdempotencyKey::forInvoice($sibling->id, $today), $sibling));
+    $log->record(attempt(DeliveryOutcome::Sent, IdempotencyKey::forInvoice($other->id, $today), $other));
+
+    expect($log->deliveredOn($this->invoice->company_id, $today))->toBe(2)
+        ->and($log->deliveredOn($this->invoice->company_id, new DateTimeImmutable('2026-10-21')))->toBe(0)
+        ->and($log->deliveredOn($other->company_id, $today))->toBe(1);
 })->with('reminder logs');

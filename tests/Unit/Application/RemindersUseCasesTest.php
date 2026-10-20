@@ -12,6 +12,7 @@ use App\Domain\Billing\Money;
 use App\Domain\Billing\PhoneNumber;
 use App\Domain\Reminders\DeliveryOutcome;
 use App\Domain\Reminders\DeliveryResult;
+use App\Domain\Reminders\ReminderLimits;
 use App\Domain\RuleViolation;
 use Tests\Support\FakeReminderSender;
 use Tests\Support\InMemoryClients;
@@ -26,6 +27,7 @@ beforeEach(function () {
     $this->sender = new FakeReminderSender;
     $this->log = new InMemoryReminderLog;
     $this->today = new DateTimeImmutable('2026-10-20 09:00');
+    $this->limits = new ReminderLimits(perInvoice: 3, perCompanyPerDay: 200);
     $this->ana = $this->clients->save(Client::create(1, 'Ana', null, new PhoneNumber('5511999990000')));
 });
 
@@ -36,7 +38,7 @@ function invoiceFor(Client $client, InvoiceStatus $status, string $due): Invoice
 
 function sendReminder(int $invoiceId): ?DeliveryResult
 {
-    return (new SendInvoiceReminder(test()->invoices, test()->clients, test()->sender, test()->log))($invoiceId, test()->today);
+    return (new SendInvoiceReminder(test()->invoices, test()->clients, test()->sender, test()->log, test()->limits))($invoiceId, test()->today);
 }
 
 it('vence as em aberto com vencimento no passado e enfileira lembrete de todas as vencidas', function () {
@@ -117,3 +119,33 @@ it('não manda SMS pra cliente de outra empresa nem se o dado vier torto', funct
         ->and($this->sender->sent)->toBeEmpty()
         ->and($this->log->attempts)->toBeEmpty();
 });
+
+it('para depois de 3 lembretes entregues da mesma fatura', function () {
+    $invoice = invoiceFor($this->ana, InvoiceStatus::Overdue, '2026-10-10');
+
+    foreach (['2026-10-20', '2026-10-21', '2026-10-22', '2026-10-23'] as $day) {
+        $this->today = new DateTimeImmutable($day);
+        $results[] = sendReminder($invoice->id)?->outcome;
+    }
+
+    expect($results)->toBe([DeliveryOutcome::Sent, DeliveryOutcome::Sent, DeliveryOutcome::Sent, null])
+        ->and($this->sender->sent)->toHaveCount(3);
+});
+
+it('cota diária por empresa: passou do teto, o resto fica pro dia seguinte', function () {
+    $this->limits = new ReminderLimits(perInvoice: 3, perCompanyPerDay: 2);
+    $bia = $this->clients->save(Client::create(2, 'Bia', null, new PhoneNumber('5511999990001')));
+    $mine = array_map(fn () => invoiceFor($this->ana, InvoiceStatus::Overdue, '2026-10-10'), range(1, 3));
+    $theirs = invoiceFor($bia, InvoiceStatus::Overdue, '2026-10-10');
+
+    $results = array_map(fn (Invoice $i) => sendReminder($i->id)?->outcome, [...$mine, $theirs]);
+
+    expect($results)->toBe([DeliveryOutcome::Sent, DeliveryOutcome::Sent, null, DeliveryOutcome::Sent]);
+
+    $this->today = new DateTimeImmutable('2026-10-21');
+    expect(sendReminder($mine[2]->id)?->outcome)->toBe(DeliveryOutcome::Sent);
+});
+
+it('limites precisam ser positivos', function (int $perInvoice, int $perDay) {
+    new ReminderLimits($perInvoice, $perDay);
+})->with([[0, 1], [1, 0]])->throws(InvalidArgumentException::class);

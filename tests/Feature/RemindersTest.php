@@ -9,6 +9,7 @@ use App\Domain\Billing\InvoiceStatus;
 use App\Domain\Billing\PhoneNumber;
 use App\Domain\Reminders\DeliveryOutcome;
 use App\Domain\Reminders\IdempotencyKey;
+use App\Domain\Reminders\ReminderLimits;
 use App\Domain\Reminders\ReminderQueue;
 use App\Infrastructure\Outbox\OutboxReminderSender;
 use App\Infrastructure\Persistence\Models\Client;
@@ -66,6 +67,12 @@ it('chave no gateway leva app e ambiente por padrão, pra staging e produção n
     $services = require config_path('services.php');
 
     expect($services['outbox']['key_prefix'])->toBe(Str::slug((string) config('app.name')).'-testing-');
+});
+
+it('limites de lembrete vêm da config', function () {
+    config(['services.outbox.max_per_invoice' => 5, 'services.outbox.max_per_company_per_day' => 50]);
+
+    expect(app(ReminderLimits::class))->toEqual(new ReminderLimits(5, 50));
 });
 
 it('mapeia a resposta do gateway', function (int $status, DeliveryOutcome $outcome) {
