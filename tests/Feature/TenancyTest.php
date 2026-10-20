@@ -3,6 +3,7 @@
 use App\Models\Client;
 use App\Models\Company;
 use App\Models\Concerns\BelongsToCompany;
+use App\Models\Scopes\CompanyScope;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Schema;
@@ -47,8 +48,9 @@ it('todo model com company_id usa o escopo de tenant', function () {
 
     expect($tenantModels)->toContain(Client::class);
 
-    $tenantModels->each(fn (string $class) => expect(class_uses_recursive($class))
-        ->toHaveKey(BelongsToCompany::class, "$class tem company_id mas não usa BelongsToCompany"));
+    $tenantModels->each(fn (string $class) => expect(
+        in_array(BelongsToCompany::class, class_uses_recursive($class)) && $class::hasGlobalScope(CompanyScope::class)
+    )->toBeTrue("$class tem company_id mas não usa BelongsToCompany"));
 });
 
 it('dono e membro pertencem a uma empresa', function () {

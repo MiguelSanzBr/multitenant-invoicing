@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use App\Enums\Role;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
@@ -13,6 +15,9 @@ use Laravel\Sanctum\HasApiTokens;
 
 /**
  * @property int $id
+ * @property int $company_id
+ * @property Role $role
+ * @property-read Company $company
  * @property string $name
  * @property string $email
  * @property Carbon|null $email_verified_at
@@ -38,6 +43,20 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'role' => Role::class,
         ];
+    }
+
+    /**
+     * @return BelongsTo<Company, $this>
+     */
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(Company::class);
+    }
+
+    public function isOwner(): bool
+    {
+        return $this->role === Role::Owner;
     }
 }
