@@ -8,7 +8,6 @@ use App\Domain\Billing\InvoiceStatus;
 use App\Infrastructure\Persistence\Models\Concerns\BelongsToCompany;
 use Carbon\CarbonImmutable;
 use Database\Factories\InvoiceFactory;
-use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -25,9 +24,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property CarbonImmutable|null $paid_at
  * @property int $version
  * @property-read Client $client
+ *
+ * Sem fillable de propósito: toda escrita passa pelo repositório com forceFill a partir do domínio.
  */
 #[UseFactory(InvoiceFactory::class)]
-#[Fillable(['client_id', 'description', 'amount_cents', 'due_date', 'status', 'paid_at'])]
 class Invoice extends Model
 {
     use BelongsToCompany;

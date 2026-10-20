@@ -6,7 +6,6 @@ namespace App\Infrastructure\Persistence\Models;
 
 use App\Infrastructure\Persistence\Models\Concerns\BelongsToCompany;
 use Database\Factories\ClientFactory;
-use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -16,9 +15,10 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $name
  * @property string|null $email
  * @property string $phone
+ *
+ * Sem fillable de propósito: toda escrita passa pelo repositório com forceFill a partir do domínio.
  */
 #[UseFactory(ClientFactory::class)]
-#[Fillable(['name', 'email', 'phone'])]
 class Client extends Model
 {
     use BelongsToCompany;
