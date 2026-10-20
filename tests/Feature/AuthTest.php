@@ -35,7 +35,7 @@ it('limita tentativas de login', function () {
 it('faz logout', function () {
     $this->actingAs(User::factory()->create())
         ->post(route('logout'))
-        ->assertRedirect(route('home'));
+        ->assertRedirect('/');
 
     $this->assertGuest();
 });
