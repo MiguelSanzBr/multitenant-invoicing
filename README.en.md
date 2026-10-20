@@ -180,8 +180,8 @@ Log in as Acme and as Globex to see that neither sees the other.
 Reminders:
 
 ```bash
-docker compose exec app php artisan invoices:mark-overdue   # the scheduler already runs it daily at 9am
 docker compose --profile outbox up -d                       # optional: starts outbox-gateway-demo and its mock
+docker compose exec app php artisan invoices:mark-overdue   # the scheduler already runs it daily at 9am
 ```
 
 The `outbox` profile uses the `outbox` database created by the Postgres init script. If the volume existed before, create it with `docker compose exec db createdb -U invoicing outbox`.
