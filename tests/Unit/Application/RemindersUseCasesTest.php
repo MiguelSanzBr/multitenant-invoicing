@@ -147,6 +147,10 @@ it('cota diária por empresa: passou do teto, o resto fica pro dia seguinte', fu
     expect(sendReminder($mine[2]->id)?->outcome)->toBe(DeliveryOutcome::Sent);
 });
 
+it('limite mínimo é 1 lembrete', function () {
+    expect(new ReminderLimits(1, 1))->toEqual(new ReminderLimits(perInvoice: 1, perCompanyPerDay: 1));
+});
+
 it('limites precisam ser positivos', function (int $perInvoice, int $perDay) {
     new ReminderLimits($perInvoice, $perDay);
 })->with([[0, 1], [1, 0]])->throws(InvalidValue::class);

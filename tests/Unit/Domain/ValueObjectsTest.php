@@ -60,3 +60,8 @@ it('Money formata em reais e outras moedas pelo código', function () {
     expect(Money::brl(123456)->format())->toBe('R$ 1.234,56')
         ->and(new Money(5, 'USD')->format())->toBe('USD 0,05');
 });
+
+it('Money aceita zero, o piso é não negativo (quem exige maior q zero é a fatura)', function () {
+    expect(Money::brl(0)->cents)->toBe(0)
+        ->and(Money::brl(0)->format())->toBe('R$ 0,00');
+});

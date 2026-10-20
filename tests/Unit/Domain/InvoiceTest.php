@@ -132,5 +132,7 @@ it('cliente exige nome e atualiza dados', function () {
         ->and($client->name)->toBe('Ana Maria')
         ->and($client->email)->toBe('ana@example.com')
         ->and($client->phone->value)->toBe('5511988887777');
-    expect(fn () => $client->update(' ', null, $client->phone))->toThrow(RuleViolation::class);
+    expect(fn () => $client->update(' ', null, $client->phone))->toThrow(RuleViolation::class)
+        // vale também ao reconstruir do banco, não só no create
+        ->and(fn () => new Client(7, 1, '', null, $client->phone))->toThrow(RuleViolation::class, 'Cliente precisa de nome.');
 });

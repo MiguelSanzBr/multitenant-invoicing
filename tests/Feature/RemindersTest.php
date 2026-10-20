@@ -14,6 +14,7 @@ use App\Domain\Reminders\ReminderQueue;
 use App\Infrastructure\Outbox\OutboxReminderSender;
 use App\Infrastructure\Persistence\Models\Client;
 use App\Infrastructure\Persistence\Models\Invoice;
+use App\Infrastructure\Queue\OutboxUnavailable;
 use App\Infrastructure\Queue\SendInvoiceReminderJob;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
@@ -93,6 +94,7 @@ it('mapeia a resposta do gateway', function (int $status, DeliveryOutcome $outco
     [408, DeliveryOutcome::RetryLater],
     [429, DeliveryOutcome::RetryLater],
     [301, DeliveryOutcome::Rejected],
+    [499, DeliveryOutcome::Rejected],
     [400, DeliveryOutcome::Rejected],
     [422, DeliveryOutcome::Rejected],
 ]);
@@ -107,6 +109,8 @@ it('respeita o Retry-After do gateway, em segundos ou data, com teto de 1h', fun
     'segundos' => [['Retry-After' => '120'], 120],
     'data http' => [['Retry-After' => 'Tue, 20 Oct 2026 12:05:00 GMT'], 300],
     'teto' => [['Retry-After' => '86400'], 3600],
+    'data no passado' => [['Retry-After' => 'Tue, 20 Oct 2026 11:00:00 GMT'], 0],
+    'agora' => [['Retry-After' => '0'], 0],
     'sem header' => [[], null],
     'lixo' => [['Retry-After' => 'amanhã'], null],
 ]);
@@ -154,20 +158,23 @@ it('timeout ou gateway fora do ar vira retry, com o erro cru só no log', functi
 });
 
 it('corpo de erro do gateway não vai pro histórico do tenant, só pro log', function () {
-    Http::fake(['outbox.test/*' => Http::response(['error' => 'recipient 5511999990000 recusado pelo provedor X'], 422)]);
+    $body = 'recipient 5511999990000 recusado pelo provedor X '.str_repeat('x', 600);
+    Http::fake(['outbox.test/*' => Http::response($body, 422)]);
     Log::spy();
 
     runJob()->assertFailed();
 
     expect(DB::table('reminders')->value('error'))->toBe('Gateway respondeu HTTP 422.');
+    // até 500 caracteres do corpo, do começo, com a chave pra achar no log
     Log::shouldHaveReceived('warning')->with('outbox recusou ou falhou', Mockery::on(fn (array $context) => $context['status'] === 422
-        && str_contains($context['body'], 'provedor X')))->once();
+        && $context['key'] === "mti-testing-invoice-{$this->invoice->id}-2026-10-20"
+        && $context['body'] === mb_substr($body, 0, 500)))->once();
 });
 
 it('5xx faz o job lançar exceção pra fila tentar de novo', function () {
     Http::fake(['outbox.test/*' => Http::response('', 503)]);
 
-    expect(fn () => runJob())->toThrow(RuntimeException::class);
+    expect(fn () => runJob())->toThrow(OutboxUnavailable::class, 'Outbox indisponível (503): Gateway respondeu HTTP 503.');
     expect(reminderRows()[0]['outcome'])->toBe('retry_later');
 });
 

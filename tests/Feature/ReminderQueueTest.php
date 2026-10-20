@@ -29,8 +29,8 @@ function outcomes(): array
     return DB::table('reminders')->orderBy('id')->pluck('outcome')->all();
 }
 
-it('5xx volta pra fila com o backoff do job, depois sai e libera o lock', function () {
-    Http::fakeSequence('outbox.test/*')->push('', 503)->push([], 202);
+it('5xx volta pra fila com o backoff exponencial do job, depois sai e libera o lock', function () {
+    Http::fakeSequence('outbox.test/*')->push('', 503)->push('', 503)->push([], 202);
 
     SendInvoiceReminderJob::dispatch($this->invoice->id, '2026-10-20');
     work();
@@ -41,9 +41,13 @@ it('5xx volta pra fila com o backoff do job, depois sai e libera o lock', functi
 
     $this->travel(61)->seconds();
     work();
+    expect(DB::table('jobs')->sole()->available_at)->toBe(now()->addSeconds(300)->getTimestamp());
+
+    $this->travel(301)->seconds();
+    work();
 
     expect(DB::table('jobs')->count())->toBe(0)
-        ->and(outcomes())->toBe(['retry_later', 'sent']);
+        ->and(outcomes())->toBe(['retry_later', 'retry_later', 'sent']);
 
     // lock liberado: o mesmo lembrete pode entrar na fila de novo (e o log local segura o reenvio)
     SendInvoiceReminderJob::dispatch($this->invoice->id, '2026-10-20');

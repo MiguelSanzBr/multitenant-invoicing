@@ -2,7 +2,13 @@
 
 declare(strict_types=1);
 
+use App\Domain\Billing\Client as DomainClient;
+use App\Domain\Billing\DueDate;
+use App\Domain\Billing\Invoice as DomainInvoice;
 use App\Domain\Billing\InvoiceRepository;
+use App\Domain\Billing\InvoiceStatus;
+use App\Domain\Billing\Money;
+use App\Domain\Billing\PhoneNumber;
 use App\Domain\Tenancy\TenantContext;
 use App\Infrastructure\Persistence\EloquentClientRepository;
 use App\Infrastructure\Persistence\Models\Client;
@@ -15,6 +21,7 @@ use App\Infrastructure\Persistence\Models\User;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\MassAssignmentException;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
@@ -95,3 +102,24 @@ it('model de tenant não aceita mass assignment, escrita passa pelo repositório
     'fatura paga pelo payload' => [Invoice::class, ['status' => 'paid', 'paid_at' => '2026-10-20']],
     'lembrete' => [Reminder::class, ['outcome' => 'sent']],
 ]);
+
+it('repositório grava empresa e moeda do domínio mesmo sem usuário logado (job, comando, seed)', function () {
+    $company = Company::factory()->create();
+    $clients = app(EloquentClientRepository::class);
+    $client = $clients->save(DomainClient::create($company->id, 'Ana', 'ana@example.com', new PhoneNumber('5511999990000')));
+    $invoice = app(InvoiceRepository::class)->save(DomainInvoice::create($company->id, $client->id, 'Licença', new Money(1000, 'USD'), DueDate::fromString('2026-11-10'), InvoiceStatus::Open));
+
+    $client->update('Ana Maria', 'ana.maria@example.com', new PhoneNumber('5511999990000'));
+    $clients->save($client);
+
+    expect(Client::withoutGlobalScopes()->sole()->only(['company_id', 'name', 'email']))->toBe(['company_id' => $company->id, 'name' => 'Ana Maria', 'email' => 'ana.maria@example.com'])
+        ->and(Invoice::withoutGlobalScopes()->sole()->only(['company_id', 'currency', 'version']))->toBe(['company_id' => $company->id, 'currency' => 'USD', 'version' => 0])
+        ->and($invoice->version)->toBe(0);
+});
+
+it('senha do usuário é sempre guardada com hash', function () {
+    $user = User::factory()->create(['password' => 'texto-puro']);
+
+    expect($user->getAttributes()['password'])->not->toBe('texto-puro')
+        ->and(Hash::check('texto-puro', $user->password))->toBeTrue();
+});

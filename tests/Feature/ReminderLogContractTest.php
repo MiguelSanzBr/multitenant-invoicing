@@ -75,3 +75,17 @@ it('conta lembretes entregues da empresa no dia', function (ReminderLog $log) {
         ->and($log->deliveredOn($this->invoice->company_id, new DateTimeImmutable('2026-10-21')))->toBe(0)
         ->and($log->deliveredOn($other->company_id, $today))->toBe(1);
 })->with('reminder logs');
+
+it('eloquent: o dia da cota vai da meia-noite à meia-noite, qualquer q seja a hora pedida', function () {
+    $log = app(EloquentReminderLog::class);
+    $at = function (string $when, string $day) use ($log) {
+        $this->travelTo(new DateTime($when));
+        $log->record(attempt(DeliveryOutcome::Sent, IdempotencyKey::forInvoice($this->invoice->id, new DateTimeImmutable($day))));
+    };
+    $at('2026-10-19 23:59:30', '2026-10-19');
+    $at('2026-10-20 00:00:30', '2026-10-20');
+    $at('2026-10-20 23:59:30', '2026-10-21');
+    $at('2026-10-21 00:00:30', '2026-10-22');
+
+    expect($log->deliveredOn($this->invoice->company_id, new DateTimeImmutable('2026-10-20 15:30')))->toBe(2);
+});
