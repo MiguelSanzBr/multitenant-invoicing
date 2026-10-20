@@ -1,5 +1,7 @@
+import { router } from '@inertiajs/react';
 import { render, screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it, vi } from 'vitest';
 import Login from '@/pages/auth/login';
 
 const demoUsers = [
@@ -8,6 +10,21 @@ const demoUsers = [
 ];
 
 describe('auth/login', () => {
+    it('envia pro login do Fortify e trava o botão enquanto entra', async () => {
+        const visit = vi.spyOn(router, 'visit').mockImplementation((_url, options) => {
+            options?.onStart?.({} as never);
+        });
+        render(<Login />);
+
+        await userEvent.type(screen.getByLabelText('E-mail'), 'dona@acme.test');
+        await userEvent.type(screen.getByLabelText('Senha'), 'password');
+        await userEvent.click(screen.getByRole('button', { name: 'Entrar' }));
+
+        expect(visit).toHaveBeenCalledWith('/login', expect.objectContaining({ method: 'post' }));
+        expect(screen.getByRole('button', { name: /Entrar/ })).toBeDisabled();
+        expect(screen.getByRole('status', { name: 'Carregando' })).toBeInTheDocument();
+    });
+
     it('mostra os usuários de demo com a senha quando o servidor manda', () => {
         render(<Login demoUsers={demoUsers} demoPassword="password" />);
 

@@ -14,16 +14,17 @@ export default defineConfig({
         include: ['tests/js/**/*.test.{ts,tsx}'],
         coverage: {
             provider: 'v8',
-            // só o código escrito neste repo, o resto é do starter kit (lista no README)
-            include: [
-                'resources/js/components/pagination.tsx',
-                'resources/js/pages/dashboard.tsx',
-                'resources/js/pages/clients/**',
-                'resources/js/pages/invoices/**',
-                'resources/js/pages/reminders/**',
-                'resources/js/lib/invoices.ts',
-                'resources/js/lib/money.ts',
-                'resources/js/lib/navigation.ts',
+            // tudo entra no gate por padrão; fica de fora só o q o Wayfinder escreve e o q veio pronto do starter kit
+            include: ['resources/js/**/*.{ts,tsx}'],
+            exclude: [
+                'resources/js/{actions,routes,wayfinder}/**',
+                'resources/js/components/ui/**',
+                'resources/js/components/{app-content,app-logo,app-logo-icon,app-shell,app-sidebar-header,app-sidebar,breadcrumbs,nav-main,nav-user,password-input,user-info,user-menu-content}.tsx',
+                'resources/js/hooks/**',
+                'resources/js/layouts/**',
+                'resources/js/types/**',
+                'resources/js/lib/utils.ts',
+                'resources/js/app.tsx',
             ],
             thresholds: { lines: 100, functions: 100, branches: 100, statements: 100 },
         },
