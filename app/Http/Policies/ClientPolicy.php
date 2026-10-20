@@ -21,9 +21,14 @@ class ClientPolicy
     }
 
     // o escopo já esconde o q é de outra empresa, a policy confere de novo pq não custa nada
-    public function update(User $user, Client $client): bool
+    public function view(User $user, Client $client): bool
     {
         return $user->company_id === $client->company_id;
+    }
+
+    public function update(User $user, Client $client): bool
+    {
+        return $this->view($user, $client);
     }
 
     public function delete(User $user, Client $client): bool

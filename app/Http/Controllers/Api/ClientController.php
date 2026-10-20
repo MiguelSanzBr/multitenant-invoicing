@@ -34,7 +34,7 @@ class ClientController extends Controller
 
     public function show(Client $client): ClientResource
     {
-        Gate::authorize('update', $client);
+        Gate::authorize('view', $client);
 
         return new ClientResource($client);
     }
