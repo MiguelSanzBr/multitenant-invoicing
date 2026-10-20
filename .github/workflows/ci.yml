@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   backend:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     services:
       postgres:
@@ -54,7 +54,7 @@ jobs:
         run: vendor/bin/pest --coverage --min=100
 
   frontend:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -90,3 +90,55 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  # quebra de propósito cada proteção principal; se algum mutante passar, o CI cai
+  mutation:
+    runs-on: ubuntu-24.04
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: invoicing
+          POSTGRES_PASSWORD: invoicing
+          POSTGRES_DB: invoicing_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U invoicing"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 30
+
+    env:
+      DB_HOST: 127.0.0.1
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_pgsql, intl, zip, bcmath
+          coverage: none
+          tools: composer:v2
+
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+
+      - name: Checagem de mutação (6 proteções)
+        run: sh scripts/mutation-check.sh
+
+  # a stack inteira do README, com o outbox-gateway-demo de verdade: login, API e lembrete de ponta a ponta
+  e2e:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: docker compose --profile outbox e checagem de ponta a ponta
+        run: bash scripts/e2e.sh

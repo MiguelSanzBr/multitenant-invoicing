@@ -216,7 +216,13 @@ docker compose exec app sh -c 'php artisan wayfinder:generate --with-form && npm
 docker compose exec app sh scripts/mutation-check.sh
 ```
 
-CI (`.github/workflows/ci.yml`) runs the same steps with a Postgres service.
+End to end, with the whole stack and the real outbox-gateway-demo (login, API with and without a token, reminders reaching the gateway, and a second same-day run with no duplicates). It uses a separate compose project name, so it never touches your dev database:
+
+```bash
+bash scripts/e2e.sh
+```
+
+CI (`.github/workflows/ci.yml`) runs all of this in 4 jobs: `backend` (Pint, Larastan, Pest at 100%), `frontend` (ESLint, types, Vitest at 100%, build), `mutation` (all 6 mutations must be caught) and `e2e` (the `scripts/e2e.sh` above). The runner is pinned to `ubuntu-24.04` so the image doesn't change underneath.
 
 ## License
 
