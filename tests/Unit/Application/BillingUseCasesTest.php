@@ -131,3 +131,11 @@ it('não acha fatura de outra empresa em nenhum caso de uso', function (string $
         'delete' => (new DeleteInvoice($this->invoices))($theirs->id),
     };
 })->with(['update', 'pay', 'delete'])->throws(NotFound::class);
+
+it('edição mantém a moeda da fatura, não converte pra real calada', function () {
+    $usd = $this->invoices->save(new Invoice(null, 1, $this->mine->id, 'Licença', new Money(1000, 'USD'), DueDate::fromString('2026-11-10'), InvoiceStatus::Open));
+
+    (new UpdateInvoice($this->invoices, $this->clients))($usd->id, data($this->mine->id, ['amountCents' => 2000]), new DateTimeImmutable('2026-10-20'));
+
+    expect($this->invoices->items[$usd->id]->amount)->toEqual(new Money(2000, 'USD'));
+});
