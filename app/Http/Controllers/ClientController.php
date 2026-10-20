@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Application\Billing\DeleteClient;
+use App\Application\Billing\SaveClient;
 use App\Http\Requests\ClientRequest;
 use App\Infrastructure\Persistence\Models\Client;
 use Illuminate\Http\RedirectResponse;
@@ -9,6 +11,7 @@ use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
+// leitura vai direto no model (com escopo de tenant), escrita passa pelo caso de uso
 class ClientController extends Controller
 {
     public function index(): Response
@@ -27,10 +30,10 @@ class ClientController extends Controller
         return Inertia::render('clients/form');
     }
 
-    public function store(ClientRequest $request): RedirectResponse
+    public function store(ClientRequest $request, SaveClient $save): RedirectResponse
     {
         Gate::authorize('create', Client::class);
-        Client::create($request->validated());
+        $save(null, ...$request->fields());
 
         return $this->done('Cliente salvo.');
     }
@@ -42,25 +45,18 @@ class ClientController extends Controller
         return Inertia::render('clients/form', ['client' => $client]);
     }
 
-    public function update(ClientRequest $request, Client $client): RedirectResponse
+    public function update(ClientRequest $request, Client $client, SaveClient $save): RedirectResponse
     {
         Gate::authorize('update', $client);
-        $client->update($request->validated());
+        $save($client->id, ...$request->fields());
 
         return $this->done('Cliente salvo.');
     }
 
-    public function destroy(Client $client): RedirectResponse
+    public function destroy(Client $client, DeleteClient $delete): RedirectResponse
     {
         Gate::authorize('delete', $client);
-
-        if ($client->invoices()->exists()) {
-            Inertia::flash('toast', ['type' => 'error', 'message' => 'Cliente tem faturas, exclua as faturas antes.']);
-
-            return back();
-        }
-
-        $client->delete();
+        $delete($client->id);
 
         return $this->done('Cliente excluído.');
     }

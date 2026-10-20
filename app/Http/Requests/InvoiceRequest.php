@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Application\Billing\InvoiceData;
 use App\Domain\Billing\InvoiceStatus;
 use App\Infrastructure\Persistence\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
@@ -25,5 +26,16 @@ class InvoiceRequest extends FormRequest
             'due_date' => ['required', 'date_format:Y-m-d'],
             'status' => ['required', Rule::in([InvoiceStatus::Draft->value, InvoiceStatus::Open->value])],
         ];
+    }
+
+    public function toData(): InvoiceData
+    {
+        return new InvoiceData(
+            $this->integer('client_id'),
+            $this->string('description')->value(),
+            $this->integer('amount_cents'),
+            $this->string('due_date')->value(),
+            InvoiceStatus::from($this->string('status')->value()),
+        );
     }
 }

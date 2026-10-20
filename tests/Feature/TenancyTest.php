@@ -1,10 +1,12 @@
 <?php
 
+use App\Domain\Tenancy\TenantContext;
 use App\Infrastructure\Persistence\Models\Client;
 use App\Infrastructure\Persistence\Models\Company;
 use App\Infrastructure\Persistence\Models\Concerns\BelongsToCompany;
 use App\Infrastructure\Persistence\Models\Scopes\CompanyScope;
 use App\Infrastructure\Persistence\Models\User;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -60,3 +62,7 @@ it('dono e membro pertencem a uma empresa', function () {
         ->and(User::factory()->create()->isOwner())->toBeFalse()
         ->and($owner->company->users->pluck('id')->all())->toBe([$owner->id]);
 });
+
+it('caso de uso sem usuário logado não descobre empresa', function () {
+    app(TenantContext::class)->companyId();
+})->throws(AuthenticationException::class);

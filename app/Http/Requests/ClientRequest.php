@@ -17,4 +17,16 @@ class ClientRequest extends FormRequest
             'phone' => ['required', 'regex:/^\+?\d{10,15}$/'],
         ];
     }
+
+    /**
+     * @return array{string, string|null, string}
+     */
+    public function fields(): array
+    {
+        return [
+            $this->string('name')->value(),
+            $this->filled('email') ? $this->string('email')->value() : null,
+            $this->string('phone')->value(),
+        ];
+    }
 }

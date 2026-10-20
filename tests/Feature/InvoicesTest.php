@@ -83,7 +83,9 @@ it('atualiza fatura', function () {
 it('não edita fatura paga', function () {
     $invoice = Invoice::factory()->for($this->client)->paid()->create();
 
-    $this->put(route('invoices.update', $invoice), invoiceData())->assertForbidden();
+    $this->put(route('invoices.update', $invoice), invoiceData(['description' => 'Outra']))->assertRedirect();
+
+    expect($invoice->fresh()?->description)->toBe($invoice->description);
 });
 
 it('marca como paga', function () {
@@ -98,7 +100,9 @@ it('marca como paga', function () {
 it('não paga rascunho nem fatura já paga', function (string $state) {
     $invoice = Invoice::factory()->for($this->client)->{$state}()->create();
 
-    $this->post(route('invoices.pay', $invoice))->assertForbidden();
+    $this->post(route('invoices.pay', $invoice))->assertRedirect();
+
+    expect($invoice->fresh()?->status)->toBe($invoice->status);
 })->with(['draft', 'paid']);
 
 it('só o dono apaga fatura', function () {

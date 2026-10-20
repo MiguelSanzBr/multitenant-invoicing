@@ -2,10 +2,10 @@
 
 namespace App\Http\Policies;
 
-use App\Domain\Billing\InvoiceStatus;
 use App\Infrastructure\Persistence\Models\Invoice;
 use App\Infrastructure\Persistence\Models\User;
 
+// policy responde quem pode. Regra de estado (pode pagar? pode editar?) é do domínio
 class InvoicePolicy
 {
     public function viewAny(User $user): bool
@@ -25,13 +25,12 @@ class InvoicePolicy
 
     public function update(User $user, Invoice $invoice): bool
     {
-        return $this->view($user, $invoice) && $invoice->status !== InvoiceStatus::Paid;
+        return $this->view($user, $invoice);
     }
 
     public function pay(User $user, Invoice $invoice): bool
     {
-        return $this->view($user, $invoice)
-            && in_array($invoice->status, [InvoiceStatus::Open, InvoiceStatus::Overdue], true);
+        return $this->view($user, $invoice);
     }
 
     public function delete(User $user, Invoice $invoice): bool

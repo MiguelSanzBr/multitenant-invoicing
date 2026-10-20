@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Domain\Billing\InvoiceStatus;
+use App\Application\Billing\CreateInvoice;
+use App\Application\Billing\DeleteInvoice;
+use App\Application\Billing\MarkInvoicePaid;
+use App\Application\Billing\UpdateInvoice;
 use App\Http\Requests\InvoiceRequest;
 use App\Infrastructure\Persistence\Models\Client;
 use App\Infrastructure\Persistence\Models\Invoice;
@@ -11,6 +14,7 @@ use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
+// leitura vai direto no model (com escopo de tenant), escrita passa pelo caso de uso
 class InvoiceController extends Controller
 {
     public function index(): Response
@@ -29,10 +33,10 @@ class InvoiceController extends Controller
         return $this->form();
     }
 
-    public function store(InvoiceRequest $request): RedirectResponse
+    public function store(InvoiceRequest $request, CreateInvoice $create): RedirectResponse
     {
         Gate::authorize('create', Invoice::class);
-        Invoice::create($request->validated());
+        $create($request->toData());
 
         return $this->done('Fatura salva.');
     }
@@ -44,27 +48,27 @@ class InvoiceController extends Controller
         return $this->form($invoice);
     }
 
-    public function update(InvoiceRequest $request, Invoice $invoice): RedirectResponse
+    public function update(InvoiceRequest $request, Invoice $invoice, UpdateInvoice $update): RedirectResponse
     {
         Gate::authorize('update', $invoice);
-        $invoice->update($request->validated());
+        $update($invoice->id, $request->toData());
 
         return $this->done('Fatura salva.');
     }
 
-    public function pay(Invoice $invoice): RedirectResponse
+    public function pay(Invoice $invoice, MarkInvoicePaid $pay): RedirectResponse
     {
         Gate::authorize('pay', $invoice);
-        $invoice->update(['status' => InvoiceStatus::Paid, 'paid_at' => now()]);
+        $pay($invoice->id, now());
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Fatura marcada como paga.']);
 
         return back();
     }
 
-    public function destroy(Invoice $invoice): RedirectResponse
+    public function destroy(Invoice $invoice, DeleteInvoice $delete): RedirectResponse
     {
         Gate::authorize('delete', $invoice);
-        $invoice->delete();
+        $delete($invoice->id);
 
         return $this->done('Fatura excluída.');
     }

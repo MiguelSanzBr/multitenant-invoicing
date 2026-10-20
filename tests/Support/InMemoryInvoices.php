@@ -4,8 +4,6 @@ namespace Tests\Support;
 
 use App\Domain\Billing\Invoice;
 use App\Domain\Billing\InvoiceRepository;
-use App\Domain\Billing\InvoiceStatus;
-use DateTimeImmutable;
 
 final class InMemoryInvoices implements InvoiceRepository
 {
@@ -19,11 +17,6 @@ final class InMemoryInvoices implements InvoiceRepository
         $invoice = $this->items[$id] ?? null;
 
         return $invoice?->companyId === $this->companyId ? $invoice : null;
-    }
-
-    public function findAcrossTenants(int $id): ?Invoice
-    {
-        return $this->items[$id] ?? null;
     }
 
     public function save(Invoice $invoice): Invoice
@@ -42,16 +35,5 @@ final class InMemoryInvoices implements InvoiceRepository
     public function existsForClient(int $clientId): bool
     {
         return array_any($this->items, fn (Invoice $i) => $i->clientId === $clientId);
-    }
-
-    public function openPastDue(DateTimeImmutable $today): array
-    {
-        return array_values(array_filter($this->items,
-            fn (Invoice $i) => $i->status === InvoiceStatus::Open && $i->dueDate->isBefore($today)));
-    }
-
-    public function overdueIds(): array
-    {
-        return array_keys(array_filter($this->items, fn (Invoice $i) => $i->status === InvoiceStatus::Overdue));
     }
 }

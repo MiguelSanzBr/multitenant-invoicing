@@ -5,6 +5,7 @@ namespace App\Http\Policies;
 use App\Infrastructure\Persistence\Models\Client;
 use App\Infrastructure\Persistence\Models\User;
 
+// policy responde quem pode. Regra de estado (pode pagar? pode editar?) é do domínio
 class ClientPolicy
 {
     public function viewAny(User $user): bool
