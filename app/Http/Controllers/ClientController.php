@@ -16,7 +16,7 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 // leitura vai direto no model (com escopo de tenant) e sai pelo Resource, escrita passa pelo caso de uso
-class ClientController extends Controller
+class ClientController
 {
     public function index(): Response
     {

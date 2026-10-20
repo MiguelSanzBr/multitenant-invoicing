@@ -8,7 +8,6 @@ use App\Application\Billing\CreateInvoice;
 use App\Application\Billing\DeleteInvoice;
 use App\Application\Billing\MarkInvoicePaid;
 use App\Application\Billing\UpdateInvoice;
-use App\Http\Controllers\Controller;
 use App\Http\Requests\InvoiceRequest;
 use App\Http\Resources\InvoiceResource;
 use App\Infrastructure\Persistence\Models\Invoice;
@@ -17,7 +16,7 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
 
-class InvoiceController extends Controller
+class InvoiceController
 {
     public function index(): AnonymousResourceCollection
     {

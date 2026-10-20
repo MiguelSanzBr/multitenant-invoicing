@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class ReminderController extends Controller
+class ReminderController
 {
     public function __invoke(): Response
     {

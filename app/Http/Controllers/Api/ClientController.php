@@ -7,7 +7,6 @@ namespace App\Http\Controllers\Api;
 use App\Application\Billing\CreateClient;
 use App\Application\Billing\DeleteClient;
 use App\Application\Billing\UpdateClient;
-use App\Http\Controllers\Controller;
 use App\Http\Requests\ClientRequest;
 use App\Http\Resources\ClientResource;
 use App\Infrastructure\Persistence\Models\Client;
@@ -16,7 +15,7 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
 
-class ClientController extends Controller
+class ClientController
 {
     public function index(): AnonymousResourceCollection
     {

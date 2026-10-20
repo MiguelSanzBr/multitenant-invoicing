@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class DashboardController extends Controller
+class DashboardController
 {
     public function __invoke(): Response
     {

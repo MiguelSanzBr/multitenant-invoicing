@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
 use App\Http\Requests\TokenRequest;
 use App\Infrastructure\Persistence\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -15,7 +14,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\PersonalAccessToken;
 
-class TokenController extends Controller
+class TokenController
 {
     // bcrypt custo 12 de um texto qualquer: e-mail inexistente paga o mesmo hash e o tempo não entrega quem é usuário
     private const DUMMY_HASH = '$2y$12$L8Cw40nJ/fd6RhUBLXP3T.WhxgtWnkHlDOKqs6h7uG8ew2fSBabCu';
