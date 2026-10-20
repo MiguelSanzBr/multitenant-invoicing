@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use Database\Seeders\DatabaseSeeder;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -24,6 +25,10 @@ class FortifyServiceProvider extends ServiceProvider
     {
         Fortify::loginView(fn (Request $request) => Inertia::render('auth/login', [
             'status' => $request->session()->get('status'),
+            // quem chega pelo portfólio entra sem caçar a senha no README; em produção não aparece
+            ...app()->environment('local', 'demo')
+                ? ['demoUsers' => DatabaseSeeder::DEMO_USERS, 'demoPassword' => DatabaseSeeder::DEMO_PASSWORD]
+                : [],
         ]));
 
         RateLimiter::for('login', function (Request $request) {

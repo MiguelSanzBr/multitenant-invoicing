@@ -10,9 +10,11 @@ import { store } from '@/routes/login';
 
 type Props = {
     status?: string;
+    demoUsers?: Array<{ email: string; company: string; role: string }>;
+    demoPassword?: string;
 };
 
-export default function Login({ status }: Props) {
+export default function Login({ status, demoUsers, demoPassword }: Props) {
     return (
         <>
             <Head title="Entrar" />
@@ -35,7 +37,7 @@ export default function Login({ status }: Props) {
                                     autoFocus
                                     tabIndex={1}
                                     autoComplete="email"
-                                    placeholder="email@example.com"
+                                    placeholder="voce@empresa.com.br"
                                 />
                                 <InputError message={errors.email} />
                             </div>
@@ -81,6 +83,33 @@ export default function Login({ status }: Props) {
                 <div className="mb-4 text-center text-sm font-medium text-green-600">
                     {status}
                 </div>
+            )}
+
+            {demoUsers && (
+                <section
+                    aria-labelledby="demo-users"
+                    className="rounded-lg border p-4 text-sm"
+                >
+                    <h2 id="demo-users" className="mb-2 font-medium">
+                        Usuários de demonstração
+                    </h2>
+                    <ul className="space-y-1 text-muted-foreground">
+                        {demoUsers.map((user) => (
+                            <li key={user.email}>
+                                <span className="font-mono text-foreground">
+                                    {user.email}
+                                </span>{' '}
+                                ({user.company}, {user.role})
+                            </li>
+                        ))}
+                    </ul>
+                    <p className="mt-2 text-muted-foreground">
+                        Senha de todos:{' '}
+                        <span className="font-mono text-foreground">
+                            {demoPassword}
+                        </span>
+                    </p>
+                </section>
             )}
         </>
     );

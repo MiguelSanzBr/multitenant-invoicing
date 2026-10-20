@@ -17,6 +17,15 @@ use RuntimeException;
 // duas empresas pra dar pra testar o isolamento na mão. Senha de todo mundo: password
 class DatabaseSeeder extends Seeder
 {
+    public const DEMO_PASSWORD = 'password';
+
+    // a tela de login lista esses em ambiente local ou de demo
+    public const DEMO_USERS = [
+        ['email' => 'dona@acme.test', 'company' => 'Acme', 'role' => 'dona'],
+        ['email' => 'membro@acme.test', 'company' => 'Acme', 'role' => 'membro, não exclui'],
+        ['email' => 'dono@globex.test', 'company' => 'Globex', 'role' => 'dono'],
+    ];
+
     public function run(): void
     {
         // usuários com senha conhecida e papel de dono: um db:seed por engano em produção vira porta aberta
