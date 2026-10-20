@@ -2,7 +2,13 @@
 
 declare(strict_types=1);
 
+use App\Application\Billing\MarkInvoicePaid;
+use App\Domain\Billing\ConcurrencyConflict;
+use App\Domain\Billing\CrossTenantInvoices;
+use App\Domain\Billing\DueDate;
+use App\Domain\Billing\InvoiceRepository;
 use App\Domain\Billing\InvoiceStatus;
+use App\Domain\Billing\Money;
 use App\Infrastructure\Persistence\Models\Client;
 use App\Infrastructure\Persistence\Models\Invoice;
 use App\Infrastructure\Persistence\Models\User;
@@ -118,6 +124,46 @@ it('status é obrigatório só na criação', function () {
     unset($data['status']);
 
     $this->post(route('invoices.store'), $data)->assertSessionHasErrors('status');
+});
+
+it('pagamento entre carregar e salvar a edição não é desfeito', function () {
+    $invoice = Invoice::factory()->for($this->client)->create(['status' => InvoiceStatus::Open]);
+    $repository = app(InvoiceRepository::class);
+    $stale = $repository->find($invoice->id);
+
+    app(MarkInvoicePaid::class)($invoice->id, now());
+    $stale?->edit($this->client->id, 'Editada', Money::brl(100), DueDate::fromString('2026-12-01'), now());
+
+    expect(fn () => $repository->save($stale))->toThrow(ConcurrencyConflict::class)
+        ->and($invoice->fresh()?->status)->toBe(InvoiceStatus::Paid)
+        ->and($invoice->fresh()?->description)->toBe($invoice->description);
+});
+
+it('fatura marcada como vencida pelo comando invalida a cópia carregada antes', function () {
+    $invoice = Invoice::factory()->for($this->client)->create(['status' => InvoiceStatus::Open, 'due_date' => '2026-10-01']);
+    $repository = app(InvoiceRepository::class);
+    $stale = $repository->find($invoice->id);
+
+    app(CrossTenantInvoices::class)->markOpenPastDueAsOverdue(new DateTimeImmutable('2026-10-20'));
+    $stale?->revertToDraft();
+
+    expect(fn () => $repository->save($stale))->toThrow(ConcurrencyConflict::class)
+        ->and($invoice->fresh()?->status)->toBe(InvoiceStatus::Overdue);
+});
+
+it('edição concorrente vira aviso pro usuário recarregar', function () {
+    $invoice = Invoice::factory()->for($this->client)->create(['status' => InvoiceStatus::Open]);
+    $repository = app(InvoiceRepository::class);
+    $first = $repository->find($invoice->id);
+    $second = $repository->find($invoice->id);
+
+    $first?->edit($this->client->id, 'Primeira', Money::brl(100), DueDate::fromString('2026-12-01'), now());
+    $saved = $repository->save($first);
+    $second?->edit($this->client->id, 'Segunda', Money::brl(100), DueDate::fromString('2026-12-01'), now());
+
+    expect($saved->version)->toBe($first->version + 1)
+        ->and(fn () => $repository->save($second))->toThrow(ConcurrencyConflict::class, 'A fatura mudou enquanto você mexia nela. Recarregue a página e tente de novo.')
+        ->and($invoice->fresh()?->description)->toBe('Primeira');
 });
 
 it('não edita fatura paga', function () {
