@@ -24,3 +24,18 @@ arch('portas do domínio são interfaces')->expect(DOMAIN_PORTS)->toBeInterfaces
 it('toda porta listada existe como interface', function (string $port) {
     expect(interface_exists($port))->toBeTrue("$port não é uma interface existente");
 })->with(DOMAIN_PORTS);
+
+arch('todo arquivo de app declara strict_types')->expect('App')->toUseStrictTypes();
+
+// controller fala com caso de uso e model de leitura, nunca com adapter de saída direto
+arch('http não usa os adapters de saída')
+    ->expect('App\Http')
+    ->not->toUse(['App\Infrastructure\Outbox', 'App\Infrastructure\Queue', 'App\Infrastructure\Tenancy', 'App\Infrastructure\Persistence\EloquentClientRepository', 'App\Infrastructure\Persistence\EloquentInvoiceRepository', 'App\Infrastructure\Persistence\EloquentReminderLog']);
+
+arch('classes do domínio são finais, menos as exceções base')
+    ->expect('App\Domain')
+    ->classes()
+    ->toBeFinal()
+    ->ignoring(['App\Domain\NotFound', 'App\Domain\RuleViolation']);
+
+arch()->preset()->php();
