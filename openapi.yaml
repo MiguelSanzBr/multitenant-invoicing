@@ -1,0 +1,305 @@
+openapi: 3.1.0
+info:
+  title: Multitenant Invoicing API
+  version: 1.0.0
+  description: |
+    API de clientes e faturas. Tudo é isolado por empresa: recurso de outra empresa
+    responde 404, igual a um id que não existe. Valores sempre em centavos (inteiro).
+  license:
+    name: MIT
+    identifier: MIT
+servers:
+  - url: /api/v1
+security:
+  - bearer: []
+tags:
+  - name: auth
+  - name: clients
+  - name: invoices
+
+paths:
+  /tokens:
+    post:
+      tags: [auth]
+      summary: Emite um token Sanctum
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, device_name]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+                device_name: { type: string, maxLength: 255 }
+      responses:
+        '201':
+          description: Token criado
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [token]
+                properties:
+                  token: { type: string }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { description: Muitas tentativas }
+
+  /clients:
+    get:
+      tags: [clients]
+      summary: Lista clientes da empresa (20 por página)
+      parameters:
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: Página de clientes
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Paginated'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Client' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+    post:
+      tags: [clients]
+      summary: Cria cliente
+      requestBody: { $ref: '#/components/requestBodies/ClientInput' }
+      responses:
+        '201': { $ref: '#/components/responses/ClientOk' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /clients/{client}:
+    parameters:
+      - $ref: '#/components/parameters/ClientId'
+    get:
+      tags: [clients]
+      summary: Mostra cliente
+      responses:
+        '200': { $ref: '#/components/responses/ClientOk' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [clients]
+      summary: Atualiza cliente
+      requestBody: { $ref: '#/components/requestBodies/ClientInput' }
+      responses:
+        '200': { $ref: '#/components/responses/ClientOk' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [clients]
+      summary: Exclui cliente (só dono, e só se não tiver fatura)
+      responses:
+        '204': { description: Excluído }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /invoices:
+    get:
+      tags: [invoices]
+      summary: Lista faturas da empresa, vencimento mais recente primeiro
+      parameters:
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: Página de faturas
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Paginated'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Invoice' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+    post:
+      tags: [invoices]
+      summary: Cria fatura
+      requestBody: { $ref: '#/components/requestBodies/InvoiceInput' }
+      responses:
+        '201': { $ref: '#/components/responses/InvoiceOk' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /invoices/{invoice}:
+    parameters:
+      - $ref: '#/components/parameters/InvoiceId'
+    get:
+      tags: [invoices]
+      summary: Mostra fatura
+      responses:
+        '200': { $ref: '#/components/responses/InvoiceOk' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [invoices]
+      summary: Atualiza fatura (não vale pra fatura paga)
+      requestBody: { $ref: '#/components/requestBodies/InvoiceInput' }
+      responses:
+        '200': { $ref: '#/components/responses/InvoiceOk' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [invoices]
+      summary: Exclui fatura (só dono)
+      responses:
+        '204': { description: Excluída }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /invoices/{invoice}/pay:
+    parameters:
+      - $ref: '#/components/parameters/InvoiceId'
+    post:
+      tags: [invoices]
+      summary: Marca fatura em aberto ou vencida como paga
+      responses:
+        '200': { $ref: '#/components/responses/InvoiceOk' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1 }
+    ClientId:
+      name: client
+      in: path
+      required: true
+      schema: { type: integer }
+    InvoiceId:
+      name: invoice
+      in: path
+      required: true
+      schema: { type: integer }
+
+  schemas:
+    Client:
+      type: object
+      required: [id, name, email, phone]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        email: { type: [string, 'null'], format: email }
+        phone: { type: string, pattern: '^\+?\d{10,15}$' }
+    Invoice:
+      type: object
+      required: [id, client_id, description, amount_cents, currency, due_date, status, paid_at]
+      properties:
+        id: { type: integer }
+        client_id: { type: integer }
+        description: { type: string }
+        amount_cents: { type: integer, minimum: 1, description: Valor em centavos }
+        currency: { type: string, const: BRL }
+        due_date: { type: string, format: date }
+        status: { type: string, enum: [draft, open, paid, overdue] }
+        paid_at: { type: [string, 'null'], format: date-time }
+    Paginated:
+      type: object
+      required: [data, links, meta]
+      properties:
+        links: { type: object }
+        meta: { type: object }
+    Error:
+      type: object
+      required: [message]
+      properties:
+        message: { type: string }
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items: { type: string }
+
+  requestBodies:
+    ClientInput:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [name, phone]
+            properties:
+              name: { type: string, maxLength: 255 }
+              email: { type: [string, 'null'], format: email }
+              phone: { type: string, pattern: '^\+?\d{10,15}$', description: 'Telefone com DDI, vai pro WhatsApp' }
+    InvoiceInput:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [client_id, description, amount_cents, due_date, status]
+            properties:
+              client_id: { type: integer, description: Cliente da mesma empresa }
+              description: { type: string, maxLength: 255 }
+              amount_cents: { type: integer, minimum: 1 }
+              due_date: { type: string, format: date }
+              status: { type: string, enum: [draft, open] }
+
+  responses:
+    ClientOk:
+      description: Cliente
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data: { $ref: '#/components/schemas/Client' }
+    InvoiceOk:
+      description: Fatura
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data: { $ref: '#/components/schemas/Invoice' }
+    Unauthenticated:
+      description: Sem token ou token inválido
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Forbidden:
+      description: Papel sem permissão (ex. membro tentando excluir)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: Não existe ou é de outra empresa
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Conflict:
+      description: Regra de negócio, ex. pagar rascunho ou excluir cliente com fatura
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    ValidationError:
+      description: Dados inválidos
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
