@@ -14,6 +14,12 @@ use Laravel\Fortify\Fortify;
 
 class FortifyServiceProvider extends ServiceProvider
 {
+    // só login e logout (routes/web.php): o resto do Fortify registraria confirmação de senha sem tela
+    public function register(): void
+    {
+        Fortify::ignoreRoutes();
+    }
+
     public function boot(): void
     {
         Fortify::loginView(fn (Request $request) => Inertia::render('auth/login', [
