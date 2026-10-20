@@ -6,12 +6,13 @@ namespace App\Infrastructure\Persistence;
 
 use App\Domain\Billing\Client;
 use App\Domain\Billing\ClientRepository;
+use App\Domain\Billing\CrossTenantClients;
 use App\Domain\Billing\PhoneNumber;
 use App\Infrastructure\Persistence\Models\Client as ClientModel;
 use App\Infrastructure\Persistence\Models\Scopes\CompanyScope;
 use Illuminate\Database\Eloquent\Builder;
 
-final class EloquentClientRepository implements ClientRepository
+final class EloquentClientRepository implements CrossTenantClients, ClientRepository
 {
     public function find(int $id): ?Client
     {

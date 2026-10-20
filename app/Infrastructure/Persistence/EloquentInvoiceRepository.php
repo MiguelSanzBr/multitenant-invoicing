@@ -7,6 +7,7 @@ namespace App\Infrastructure\Persistence;
 use App\Domain\Billing\DueDate;
 use App\Domain\Billing\Invoice;
 use App\Domain\Billing\InvoiceRepository;
+use App\Domain\Billing\CrossTenantInvoices;
 use App\Domain\Billing\InvoiceStatus;
 use App\Domain\Billing\Money;
 use App\Infrastructure\Persistence\Models\Invoice as InvoiceModel;
@@ -14,7 +15,7 @@ use App\Infrastructure\Persistence\Models\Scopes\CompanyScope;
 use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Builder;
 
-final class EloquentInvoiceRepository implements InvoiceRepository
+final class EloquentInvoiceRepository implements CrossTenantInvoices, InvoiceRepository
 {
     public function find(int $id): ?Invoice
     {

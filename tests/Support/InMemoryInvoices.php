@@ -6,10 +6,11 @@ namespace Tests\Support;
 
 use App\Domain\Billing\Invoice;
 use App\Domain\Billing\InvoiceRepository;
+use App\Domain\Billing\CrossTenantInvoices;
 use App\Domain\Billing\InvoiceStatus;
 use DateTimeImmutable;
 
-final class InMemoryInvoices implements InvoiceRepository
+final class InMemoryInvoices implements CrossTenantInvoices, InvoiceRepository
 {
     /** @var array<int, Invoice> */
     public array $items = [];

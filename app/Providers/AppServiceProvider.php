@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Domain\Billing\ClientRepository;
+use App\Domain\Billing\CrossTenantClients;
+use App\Domain\Billing\CrossTenantInvoices;
 use App\Domain\Billing\InvoiceRepository;
 use App\Domain\Reminders\ReminderLog;
 use App\Domain\Reminders\ReminderQueue;
@@ -38,6 +40,8 @@ class AppServiceProvider extends ServiceProvider
     public array $bindings = [
         ClientRepository::class => EloquentClientRepository::class,
         InvoiceRepository::class => EloquentInvoiceRepository::class,
+        CrossTenantClients::class => EloquentClientRepository::class,
+        CrossTenantInvoices::class => EloquentInvoiceRepository::class,
         TenantContext::class => AuthTenantContext::class,
         ReminderSender::class => OutboxReminderSender::class,
         ReminderLog::class => EloquentReminderLog::class,

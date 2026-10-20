@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Application\Reminders;
 
-use App\Domain\Billing\ClientRepository;
-use App\Domain\Billing\InvoiceRepository;
+use App\Domain\Billing\CrossTenantClients;
+use App\Domain\Billing\CrossTenantInvoices;
 use App\Domain\Billing\InvoiceStatus;
 use App\Domain\NotFound;
 use App\Domain\Reminders\DeliveryResult;
@@ -18,8 +18,8 @@ use DateTimeImmutable;
 final readonly class SendInvoiceReminder
 {
     public function __construct(
-        private InvoiceRepository $invoices,
-        private ClientRepository $clients,
+        private CrossTenantInvoices $invoices,
+        private CrossTenantClients $clients,
         private ReminderSender $sender,
         private ReminderLog $log,
     ) {}

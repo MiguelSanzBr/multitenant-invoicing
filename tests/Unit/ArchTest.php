@@ -14,6 +14,8 @@ arch('aplicação só conhece o domínio')
 const DOMAIN_PORTS = [
     'App\Domain\Billing\InvoiceRepository',
     'App\Domain\Billing\ClientRepository',
+    'App\Domain\Billing\CrossTenantInvoices',
+    'App\Domain\Billing\CrossTenantClients',
     'App\Domain\Reminders\ReminderSender',
     'App\Domain\Reminders\ReminderLog',
     'App\Domain\Reminders\ReminderQueue',
@@ -26,6 +28,16 @@ arch('portas do domínio são interfaces')->expect(DOMAIN_PORTS)->toBeInterfaces
 it('toda porta listada existe como interface', function (string $port) {
     expect(interface_exists($port))->toBeTrue("$port não é uma interface existente");
 })->with(DOMAIN_PORTS);
+
+// atravessar empresas é exceção: só o comando diário e o job de lembrete, mais os adapters e o binding
+arch('só comando e job de lembrete usam as portas q atravessam empresas')
+    ->expect(['App\Domain\Billing\CrossTenantInvoices', 'App\Domain\Billing\CrossTenantClients'])
+    ->toOnlyBeUsedIn([
+        'App\Application\Billing\MarkOverdueInvoices',
+        'App\Application\Reminders\SendInvoiceReminder',
+        'App\Infrastructure\Persistence',
+        'App\Providers\AppServiceProvider',
+    ]);
 
 arch('todo arquivo de app declara strict_types')->expect('App')->toUseStrictTypes();
 
