@@ -48,6 +48,11 @@ it('valida o cliente', function (array $data, string $field) {
     'e-mail inválido' => [['name' => 'Ana', 'phone' => '5511999990000', 'email' => 'x'], 'email'],
 ]);
 
+it('telefone é validado pela mesma regra do domínio, com mensagem clara', function (string $phone) {
+    $this->post(route('clients.store'), ['name' => 'Ana', 'phone' => $phone])
+        ->assertSessionHasErrors(['phone' => 'O telefone precisa ter de 10 a 15 dígitos, com ou sem + na frente.']);
+})->with(['11-abc', '123', '+55 11 99999 0000']);
+
 it('atualiza cliente', function () {
     $client = Client::factory()->for($this->user->company)->create();
 

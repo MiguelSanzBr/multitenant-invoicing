@@ -6,6 +6,7 @@ use App\Domain\Billing\InvoiceStatus;
 use App\Infrastructure\Persistence\Models\Client;
 use App\Infrastructure\Persistence\Models\Invoice;
 use App\Infrastructure\Persistence\Models\User;
+use Illuminate\Support\Facades\DB;
 
 beforeEach(function () {
     $this->user = User::factory()->owner()->create();
@@ -87,4 +88,13 @@ it('token expira em 30 dias', function () {
     $this->travel(2)->days();
     app('auth')->forgetGuards();
     $this->withToken($token)->getJson('/api/v1/clients')->assertUnauthorized();
+});
+
+it('valor inválido q escapou da validação (dado legado) vira 422, não 500', function () {
+    DB::table('clients')->where('id', $this->client->id)->update(['phone' => 'sem telefone']);
+    $invoice = Invoice::factory()->for($this->client)->create();
+
+    $this->putJson("/api/v1/invoices/{$invoice->id}", [
+        'client_id' => $this->client->id, 'description' => 'Site', 'amount_cents' => 1000, 'due_date' => '2026-11-10', 'status' => 'open',
+    ])->assertUnprocessable()->assertJson(['message' => 'Telefone inválido: sem telefone']);
 });

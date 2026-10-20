@@ -13,6 +13,7 @@ use App\Domain\Billing\PhoneNumber;
 use App\Domain\Reminders\DeliveryOutcome;
 use App\Domain\Reminders\DeliveryResult;
 use App\Domain\Reminders\ReminderLimits;
+use App\Domain\InvalidValue;
 use App\Domain\RuleViolation;
 use Tests\Support\FakeReminderSender;
 use Tests\Support\InMemoryClients;
@@ -148,4 +149,4 @@ it('cota diária por empresa: passou do teto, o resto fica pro dia seguinte', fu
 
 it('limites precisam ser positivos', function (int $perInvoice, int $perDay) {
     new ReminderLimits($perInvoice, $perDay);
-})->with([[0, 1], [1, 0]])->throws(InvalidArgumentException::class);
+})->with([[0, 1], [1, 0]])->throws(InvalidValue::class);
