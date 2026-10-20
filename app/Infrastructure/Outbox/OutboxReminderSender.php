@@ -23,7 +23,7 @@ final class OutboxReminderSender implements ReminderSender
                 ->timeout(Config::integer('services.outbox.timeout'))
                 ->connectTimeout(Config::integer('services.outbox.connect_timeout'))
                 ->acceptJson()
-                ->withHeaders(['Idempotency-Key' => $key->value])
+                ->withHeaders(['Idempotency-Key' => Config::string('services.outbox.key_prefix').$key->value])
                 ->post('/v1/messages', ['recipient' => $recipient->value, 'body' => $body]);
         } catch (ConnectionException $e) {
             // timeout ou gateway fora: não dá pra saber se chegou, então tenta de novo com a mesma chave

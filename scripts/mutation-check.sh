@@ -42,7 +42,7 @@ mutate "escopo aberto sem usuário" app/Infrastructure/Persistence/Models/Scopes
 mutate "sem lock único no job" app/Infrastructure/Queue/SendInvoiceReminderJob.php \
     'implements ShouldBeUnique, ShouldQueue' 'implements ShouldQueue'
 mutate "envio sem Idempotency-Key" app/Infrastructure/Outbox/OutboxReminderSender.php \
-    "->withHeaders(\['Idempotency-Key' => \$key->value\])" ''
+    "->withHeaders(\['Idempotency-Key' => Config::string('services.outbox.key_prefix').\$key->value\])" ''
 mutate "4xx tratado como retry" app/Infrastructure/Outbox/OutboxReminderSender.php \
     'default => DeliveryOutcome::Rejected' 'default => DeliveryOutcome::RetryLater'
 mutate "retry_after menor q o timeout" config/queue.php \

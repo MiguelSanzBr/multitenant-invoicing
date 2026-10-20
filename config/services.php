@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use Illuminate\Support\Str;
+
 return [
 
     /*
@@ -36,6 +38,8 @@ return [
         'timeout' => (int) env('OUTBOX_TIMEOUT', 10),
         // gateway fora do ar não pode segurar o worker pelo timeout inteiro
         'connect_timeout' => (int) env('OUTBOX_CONNECT_TIMEOUT', 2),
+        // namespace da chave no gateway: staging e produção no mesmo outbox não podem colidir na fatura 42
+        'key_prefix' => env('OUTBOX_KEY_PREFIX', Str::slug((string) env('APP_NAME', 'app')).'-'.env('APP_ENV', 'production').'-'),
     ],
 
     'slack' => [
