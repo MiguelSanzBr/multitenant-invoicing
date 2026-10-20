@@ -18,6 +18,8 @@ final class Invoice
         public private(set) DueDate $dueDate,
         public private(set) InvoiceStatus $status,
         public private(set) ?DateTimeImmutable $paidAt = null,
+        // versão do locking otimista, só o repositório mexe
+        public readonly int $version = 0,
     ) {
         self::guard($description, $amount);
     }

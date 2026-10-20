@@ -23,6 +23,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property CarbonImmutable $due_date
  * @property InvoiceStatus $status
  * @property CarbonImmutable|null $paid_at
+ * @property int $version
  * @property-read Client $client
  */
 #[UseFactory(InvoiceFactory::class)]
@@ -46,6 +47,7 @@ class Invoice extends Model
             'due_date' => 'date:Y-m-d',
             'status' => InvoiceStatus::class,
             'paid_at' => 'datetime',
+            'version' => 'integer',
         ];
     }
 

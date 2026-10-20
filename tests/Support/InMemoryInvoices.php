@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Support;
 
+use App\Domain\Billing\ConcurrencyConflict;
 use App\Domain\Billing\CrossTenantInvoices;
 use App\Domain\Billing\Invoice;
 use App\Domain\Billing\InvoiceRepository;
@@ -33,8 +34,13 @@ final class InMemoryInvoices implements CrossTenantInvoices, InvoiceRepository
     {
         $id = $invoice->id ?? count($this->items) + 1;
 
+        // mesmo locking otimista do repositório Eloquent
+        if (isset($this->items[$id]) && $this->items[$id] !== $invoice && $this->items[$id]->version !== $invoice->version) {
+            throw new ConcurrencyConflict;
+        }
+
         return $this->items[$id] = new Invoice($id, $invoice->companyId, $invoice->clientId, $invoice->description,
-            $invoice->amount, $invoice->dueDate, $invoice->status, $invoice->paidAt);
+            $invoice->amount, $invoice->dueDate, $invoice->status, $invoice->paidAt, $invoice->id === null ? 0 : $invoice->version + 1);
     }
 
     public function delete(Invoice $invoice): void

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Persistence;
 
+use App\Domain\Billing\ConcurrencyConflict;
 use App\Domain\Billing\CrossTenantInvoices;
 use App\Domain\Billing\DueDate;
 use App\Domain\Billing\Invoice;
@@ -14,6 +15,7 @@ use App\Infrastructure\Persistence\Models\Invoice as InvoiceModel;
 use App\Infrastructure\Persistence\Models\Scopes\CompanyScope;
 use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 
 final class EloquentInvoiceRepository implements CrossTenantInvoices, InvoiceRepository
 {
@@ -33,8 +35,7 @@ final class EloquentInvoiceRepository implements CrossTenantInvoices, InvoiceRep
 
     public function save(Invoice $invoice): Invoice
     {
-        $model = $invoice->id === null ? new InvoiceModel : $this->owned($invoice)->firstOrFail();
-        $model->forceFill([
+        $attributes = [
             'company_id' => $invoice->companyId,
             'client_id' => $invoice->clientId,
             'description' => $invoice->description,
@@ -43,9 +44,25 @@ final class EloquentInvoiceRepository implements CrossTenantInvoices, InvoiceRep
             'due_date' => (string) $invoice->dueDate,
             'status' => $invoice->status,
             'paid_at' => $invoice->paidAt,
-        ])->save();
+        ];
 
-        return $this->toDomain($model);
+        if ($invoice->id === null) {
+            $model = new InvoiceModel;
+            $model->forceFill([...$attributes, 'version' => 0])->save();
+
+            return $this->toDomain($model);
+        }
+
+        // só grava se ninguém salvou depois q essa cópia foi carregada
+        $updated = $this->owned($invoice)
+            ->where('version', $invoice->version)
+            ->update([...$attributes, 'version' => $invoice->version + 1]);
+
+        if ($updated === 0) {
+            throw new ConcurrencyConflict;
+        }
+
+        return $this->toDomain($this->owned($invoice)->firstOrFail());
     }
 
     public function delete(Invoice $invoice): void
@@ -63,7 +80,7 @@ final class EloquentInvoiceRepository implements CrossTenantInvoices, InvoiceRep
         return $this->allTenants()
             ->where('status', InvoiceStatus::Open)
             ->where('due_date', '<', $today->format('Y-m-d'))
-            ->update(['status' => InvoiceStatus::Overdue]);
+            ->update(['status' => InvoiceStatus::Overdue, 'version' => DB::raw('version + 1')]);
     }
 
     public function overdueIds(): array
@@ -103,6 +120,7 @@ final class EloquentInvoiceRepository implements CrossTenantInvoices, InvoiceRep
             DueDate::fromString($model->due_date->format('Y-m-d')),
             $model->status,
             $model->paid_at,
+            $model->version,
         );
     }
 }
