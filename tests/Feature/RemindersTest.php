@@ -21,6 +21,7 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
 use Illuminate\Queue\Middleware\ThrottlesExceptions;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 
@@ -139,14 +140,28 @@ it('job: timeout, prazo, backoff, lock e disjuntor pinados', function () {
         ->and($config('decaySeconds'))->toBe(300);
 });
 
-it('timeout ou gateway fora do ar vira retry', function () {
-    Http::fake(fn () => throw new ConnectionException('Connection refused'));
+it('timeout ou gateway fora do ar vira retry, com o erro cru só no log', function () {
+    Http::fake(fn () => throw new ConnectionException('cURL error 6: Could not resolve host: outbox-gateway'));
+    Log::spy();
 
     $result = app(OutboxReminderSender::class)->send(IdempotencyKey::forInvoice(1, now()), new PhoneNumber('5511999990000'), 'oi');
 
     expect($result->outcome)->toBe(DeliveryOutcome::RetryLater)
         ->and($result->httpStatus)->toBeNull()
-        ->and($result->error)->toBe('Connection refused');
+        ->and($result->error)->toBe('Sem resposta do gateway.');
+    Log::shouldHaveReceived('warning')->with('outbox sem resposta', Mockery::on(fn (array $context) => $context['key'] === 'mti-testing-invoice-1-2026-10-20'
+        && str_contains($context['error'], 'Could not resolve host')))->once();
+});
+
+it('corpo de erro do gateway não vai pro histórico do tenant, só pro log', function () {
+    Http::fake(['outbox.test/*' => Http::response(['error' => 'recipient 5511999990000 recusado pelo provedor X'], 422)]);
+    Log::spy();
+
+    runJob()->assertFailed();
+
+    expect(DB::table('reminders')->value('error'))->toBe('Gateway respondeu HTTP 422.');
+    Log::shouldHaveReceived('warning')->with('outbox recusou ou falhou', Mockery::on(fn (array $context) => $context['status'] === 422
+        && str_contains($context['body'], 'provedor X')))->once();
 });
 
 it('5xx faz o job lançar exceção pra fila tentar de novo', function () {

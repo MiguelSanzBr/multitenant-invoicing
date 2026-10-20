@@ -31,3 +31,18 @@ it('mostra o histórico de lembretes da empresa, mais recente primeiro', functio
             ->where('reminders.data.0.invoice.client.name', 'Ana')
             ->where('reminders.data.1.error', 'indisponível'));
 });
+
+it('manda pro front só os campos q a tela usa', function () {
+    $user = User::factory()->create();
+    logReminder(Invoice::factory()->for(Client::factory()->for($user->company)->create())->create(), 'sent');
+
+    $this->actingAs($user)->get(route('reminders.index'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('reminders.data.0', fn (Assert $row) => $row
+                ->hasAll(['id', 'idempotency_key', 'outcome', 'http_status', 'error', 'created_at'])
+                ->has('invoice', fn (Assert $invoice) => $invoice
+                    ->hasAll(['id', 'description'])
+                    ->has('client', fn (Assert $client) => $client->has('name'))))
+            ->has('reminders.current_page')
+            ->has('reminders.last_page'));
+});
