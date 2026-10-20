@@ -136,12 +136,12 @@ Test names are in Portuguese. PHP tests run against real Postgres (`invoicing_te
 `scripts/mutation-check.sh` breaks each protection on purpose, runs the whole suite and restores the file, even if the run is interrupted (trap on `EXIT`, `INT` and `TERM`). Real output from the last run:
 
 ```
-PEGO   sem escopo de tenant ->  Tests:    18 failed, 111 passed (425 assertions)
-PEGO   escopo aberto sem usuário ->  Tests:    1 failed, 128 passed (462 assertions)
-PEGO   sem lock único no job ->  Tests:    1 failed, 128 passed (461 assertions)
-PEGO   envio sem Idempotency-Key ->  Tests:    2 failed, 127 passed (462 assertions)
-PEGO   4xx tratado como retry ->  Tests:    3 failed, 126 passed (459 assertions)
-PEGO   retry_after menor q o timeout ->  Tests:    1 failed, 128 passed (461 assertions)
+PEGO   sem escopo de tenant ->  Tests:    17 failed, 119 passed (427 assertions)
+PEGO   escopo aberto sem usuário ->  Tests:    1 failed, 135 passed (480 assertions)
+PEGO   sem lock único no job ->  Tests:    1 failed, 135 passed (479 assertions)
+PEGO   envio sem Idempotency-Key ->  Tests:    2 failed, 134 passed (480 assertions)
+PEGO   4xx tratado como retry ->  Tests:    3 failed, 133 passed (477 assertions)
+PEGO   retry_after menor q o timeout ->  Tests:    1 failed, 135 passed (479 assertions)
 ```
 
 (`PEGO` = caught.) The mutations are: no tenant scope, scope open when there is no user, no unique lock on the job, send without `Idempotency-Key`, 4xx treated as retry, `retry_after` below the job timeout. Every mutation made at least one test fail.

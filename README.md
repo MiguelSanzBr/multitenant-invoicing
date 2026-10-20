@@ -136,12 +136,12 @@ Os testes PHP rodam contra Postgres de verdade (`invoicing_test`), nunca SQLite.
 `scripts/mutation-check.sh` quebra cada proteção de propósito, roda a suíte inteira e restaura o arquivo, inclusive se a execução for interrompida (trap em `EXIT`, `INT` e `TERM`). Saída real da última rodada:
 
 ```
-PEGO   sem escopo de tenant ->  Tests:    18 failed, 111 passed (425 assertions)
-PEGO   escopo aberto sem usuário ->  Tests:    1 failed, 128 passed (462 assertions)
-PEGO   sem lock único no job ->  Tests:    1 failed, 128 passed (461 assertions)
-PEGO   envio sem Idempotency-Key ->  Tests:    2 failed, 127 passed (462 assertions)
-PEGO   4xx tratado como retry ->  Tests:    3 failed, 126 passed (459 assertions)
-PEGO   retry_after menor q o timeout ->  Tests:    1 failed, 128 passed (461 assertions)
+PEGO   sem escopo de tenant ->  Tests:    17 failed, 119 passed (427 assertions)
+PEGO   escopo aberto sem usuário ->  Tests:    1 failed, 135 passed (480 assertions)
+PEGO   sem lock único no job ->  Tests:    1 failed, 135 passed (479 assertions)
+PEGO   envio sem Idempotency-Key ->  Tests:    2 failed, 134 passed (480 assertions)
+PEGO   4xx tratado como retry ->  Tests:    3 failed, 133 passed (477 assertions)
+PEGO   retry_after menor q o timeout ->  Tests:    1 failed, 135 passed (479 assertions)
 ```
 
 Toda mutação fez pelo menos um teste falhar.
