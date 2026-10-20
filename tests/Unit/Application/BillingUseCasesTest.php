@@ -100,12 +100,12 @@ it('marca como paga e apaga', function () {
     expect($this->invoices->items)->toBeEmpty();
 });
 
-it('não acha fatura de outra empresa em nenhum caso de uso', function (Closure $call) {
-    $this->invoices->save(new Invoice(null, 2, $this->foreign->id, 'Dela', Money::brl(1), DueDate::fromString('2026-01-01'), InvoiceStatus::Open));
+it('não acha fatura de outra empresa em nenhum caso de uso', function (string $useCase) {
+    $theirs = $this->invoices->save(new Invoice(null, 2, $this->foreign->id, 'Dela', Money::brl(1), DueDate::fromString('2026-01-01'), InvoiceStatus::Open));
 
-    $call($this->invoices, $this->clients, 1);
-})->with([
-    'update' => fn () => fn ($i, $c, $id) => (new UpdateInvoice($i, $c))($id, data(1)),
-    'pay' => fn () => fn ($i, $c, $id) => (new MarkInvoicePaid($i))($id, new DateTimeImmutable),
-    'delete' => fn () => fn ($i, $c, $id) => (new DeleteInvoice($i))($id),
-])->throws(NotFound::class);
+    match ($useCase) {
+        'update' => (new UpdateInvoice($this->invoices, $this->clients))($theirs->id, data($this->mine->id)),
+        'pay' => (new MarkInvoicePaid($this->invoices))($theirs->id, new DateTimeImmutable),
+        'delete' => (new DeleteInvoice($this->invoices))($theirs->id),
+    };
+})->with(['update', 'pay', 'delete'])->throws(NotFound::class);
