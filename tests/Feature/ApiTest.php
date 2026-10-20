@@ -75,3 +75,14 @@ it('membro não apaga pela API', function () {
         ->deleteJson("/api/v1/invoices/{$invoice->id}")
         ->assertForbidden();
 });
+
+it('token expira em 30 dias', function () {
+    $token = $this->user->createToken('curto')->plainTextToken;
+
+    $this->travel(29)->days();
+    $this->withToken($token)->getJson('/api/v1/clients')->assertOk();
+
+    $this->travel(2)->days();
+    app('auth')->forgetGuards();
+    $this->withToken($token)->getJson('/api/v1/clients')->assertUnauthorized();
+});
