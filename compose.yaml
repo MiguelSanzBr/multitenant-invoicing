@@ -1,0 +1,66 @@
+name: multitenant-invoicing
+
+x-php: &php
+  build:
+    context: docker
+  image: multitenant-invoicing-php
+  volumes: [".:/app"]
+  environment: &env
+    DB_CONNECTION: pgsql
+    DB_HOST: db
+    DB_PORT: "5432"
+    DB_DATABASE: invoicing
+    DB_USERNAME: invoicing
+    DB_PASSWORD: invoicing
+    QUEUE_CONNECTION: database
+    OUTBOX_URL: ${OUTBOX_URL:-http://outbox-gateway:8080}
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: invoicing
+      POSTGRES_PASSWORD: invoicing
+      POSTGRES_DB: invoicing
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/initdb:/docker-entrypoint-initdb.d:ro
+    ports: ["5434:5432"]
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "invoicing"]
+      interval: 2s
+      retries: 30
+
+  setup:
+    <<: *php
+    command: ["sh", "docker/setup.sh"]
+    depends_on:
+      db: { condition: service_healthy }
+
+  vite:
+    <<: *php
+    command: ["sh", "-c", "npm ci && npm run build"]
+    depends_on:
+      setup: { condition: service_completed_successfully }
+
+  app:
+    <<: *php
+    command: ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
+    ports: ["8000:8000"]
+    depends_on:
+      vite: { condition: service_completed_successfully }
+
+  queue:
+    <<: *php
+    command: ["php", "artisan", "queue:work", "--queue=default"]
+    depends_on:
+      setup: { condition: service_completed_successfully }
+
+  scheduler:
+    <<: *php
+    command: ["php", "artisan", "schedule:work"]
+    depends_on:
+      setup: { condition: service_completed_successfully }
+
+volumes:
+  pgdata:
