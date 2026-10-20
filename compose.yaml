@@ -1,8 +1,11 @@
 name: multitenant-invoicing
 
+# stack de desenvolvimento: bind mount, artisan serve e senha fraca no banco. Imagem de produção
+# é o target prod do docker/Dockerfile (ver README)
 x-php: &php
   build:
     context: docker
+    target: dev
     # mesmo dono dos arquivos do bind mount, senão o container não escreve em vendor/ e storage/
     args:
       UID: ${UID:-1000}
@@ -15,21 +18,24 @@ x-php: &php
     DB_PORT: "5432"
     DB_DATABASE: invoicing
     DB_USERNAME: invoicing
-    DB_PASSWORD: invoicing
+    DB_PASSWORD: ${DB_PASSWORD:-invoicing}
     QUEUE_CONNECTION: database
     OUTBOX_URL: ${OUTBOX_URL:-http://outbox-gateway:8080}
+    # stack trace do job q falhou aparece no docker compose logs, não fica escondido em storage/logs
+    LOG_CHANNEL: stderr
 
 services:
   db:
     image: postgres:17-alpine
     environment:
       POSTGRES_USER: invoicing
-      POSTGRES_PASSWORD: invoicing
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-invoicing}
       POSTGRES_DB: invoicing
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./docker/initdb:/docker-entrypoint-initdb.d:ro
-    ports: ["5434:5432"]
+    # só na máquina local: banco com senha fraca não pode ficar aberto na rede
+    ports: ["127.0.0.1:${DB_PORT_HOST:-5434}:5432"]
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "invoicing"]
       interval: 2s
@@ -50,30 +56,52 @@ services:
   app:
     <<: *php
     command: ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
-    ports: ["8000:8000"]
+    ports: ["127.0.0.1:${APP_PORT:-8000}:8000"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/up"]
+      interval: 10s
+      retries: 3
+      start_period: 20s
     depends_on:
       vite: { condition: service_completed_successfully }
 
   queue:
     <<: *php
-    command: ["php", "artisan", "queue:work", "--queue=default"]
+    # --max-time recicla o worker de hora em hora (memória e código novo do bind mount)
+    command: ["php", "artisan", "queue:work", "--queue=default", "--max-time=3600"]
+    restart: unless-stopped
+    healthcheck:
+      # o worker toca o arquivo a cada volta do loop (AppServiceProvider)
+      test: ["CMD-SHELL", "find storage/framework/queue-heartbeat -mmin -2 | grep -q ."]
+      interval: 30s
+      retries: 3
+      start_period: 30s
     depends_on:
       setup: { condition: service_completed_successfully }
 
   scheduler:
     <<: *php
     command: ["php", "artisan", "schedule:work"]
+    restart: unless-stopped
+    healthcheck:
+      # o scheduler toca o arquivo todo minuto (routes/console.php)
+      test: ["CMD-SHELL", "find storage/framework/schedule-heartbeat -mmin -3 | grep -q ."]
+      interval: 60s
+      retries: 3
+      start_period: 90s
     depends_on:
       setup: { condition: service_completed_successfully }
 
   # opcional: docker compose --profile outbox up. Sem ele o OUTBOX_URL não resolve,
-  # o envio falha com erro de conexão e o job volta pra fila com backoff
+  # o envio falha com erro de conexão e o job volta pra fila com backoff.
+  # fixado num commit: push no outro repo não muda o CI daqui sem um commit explícito subindo a versão
   outbox-gateway:
     profiles: ["outbox"]
-    build: https://github.com/MiguelSanzBr/outbox-gateway-demo.git
+    build: https://github.com/MiguelSanzBr/outbox-gateway-demo.git#613a7e7ed33b459f70118b4ddd58aa57bfb9269e
     command: ["/gateway"]
     environment:
-      DATABASE_URL: postgres://invoicing:invoicing@db:5432/outbox
+      DATABASE_URL: postgres://invoicing:${DB_PASSWORD:-invoicing}@db:5432/outbox
       PROVIDER_URL: http://outbox-mock:9090/v1/messages
     depends_on:
       db: { condition: service_healthy }
@@ -81,7 +109,7 @@ services:
 
   outbox-mock:
     profiles: ["outbox"]
-    build: https://github.com/MiguelSanzBr/outbox-gateway-demo.git
+    build: https://github.com/MiguelSanzBr/outbox-gateway-demo.git#613a7e7ed33b459f70118b4ddd58aa57bfb9269e
     command: ["/mockprovider"]
 
 volumes:
