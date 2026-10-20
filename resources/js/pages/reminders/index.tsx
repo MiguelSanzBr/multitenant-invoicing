@@ -39,7 +39,7 @@ export default function RemindersIndex({ reminders }: { reminders: Paginated<Rem
                                     <tr key={reminder.id} className="border-t">
                                         <td className="p-3 whitespace-nowrap">{formatDateTime(reminder.created_at)}</td>
                                         <td className="p-3 underline-offset-4 hover:underline">
-                                            <Link href={`/invoices/${reminder.invoice_id}/edit`}>{reminder.invoice.description}</Link>
+                                            <Link href={`/invoices/${reminder.invoice.id}/edit`}>{reminder.invoice.description}</Link>
                                         </td>
                                         <td className="p-3">{reminder.invoice.client.name}</td>
                                         <td className="p-3">{outcomeLabels[reminder.outcome]}</td>

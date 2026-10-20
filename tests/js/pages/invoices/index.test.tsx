@@ -18,7 +18,7 @@ const invoice = (overrides: Partial<Invoice>): Invoice => ({
     ...overrides,
 });
 
-const page = (data: Invoice[]) => ({ data, prev_page_url: null, next_page_url: null });
+const page = (data: Invoice[]) => ({ data, current_page: 1, last_page: 1, prev_page_url: null, next_page_url: null });
 
 describe('invoices/index', () => {
     it('lista faturas com valor, vencimento e status', () => {

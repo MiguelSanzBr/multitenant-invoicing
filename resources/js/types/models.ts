@@ -1,5 +1,8 @@
+// formato do LengthAwarePaginator do Laravel; os itens vêm dos Resources em app/Http/Resources
 export type Paginated<T> = {
     data: T[];
+    current_page: number;
+    last_page: number;
     prev_page_url: string | null;
     next_page_url: string | null;
 };
@@ -27,13 +30,13 @@ export type Invoice = {
 
 export type ReminderOutcome = 'sent' | 'already_sent' | 'retry_later' | 'rejected';
 
+// ReminderResource
 export type Reminder = {
     id: number;
-    invoice_id: number;
     idempotency_key: string;
     outcome: ReminderOutcome;
     http_status: number | null;
     error: string | null;
     created_at: string;
-    invoice: { id: number; description: string; client: { id: number; name: string } };
+    invoice: { id: number; description: string; client: { name: string } };
 };

@@ -5,17 +5,16 @@ import RemindersIndex from '@/pages/reminders/index';
 
 const reminder = (overrides: Partial<Reminder>): Reminder => ({
     id: 1,
-    invoice_id: 4,
     idempotency_key: 'invoice-4-2026-10-20',
     outcome: 'sent',
     http_status: 202,
     error: null,
     created_at: '2026-10-20T12:00:00.000000Z',
-    invoice: { id: 4, description: 'Site', client: { id: 2, name: 'Ana' } },
+    invoice: { id: 4, description: 'Site', client: { name: 'Ana' } },
     ...overrides,
 });
 
-const page = (data: Reminder[]) => ({ data, prev_page_url: null, next_page_url: null });
+const page = (data: Reminder[]) => ({ data, current_page: 1, last_page: 1, prev_page_url: null, next_page_url: null });
 
 describe('reminders/index', () => {
     it('lista cada tentativa com resultado, HTTP e erro', () => {

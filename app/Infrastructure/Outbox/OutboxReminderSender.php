@@ -12,22 +12,28 @@ use App\Domain\Reminders\ReminderSender;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 /** Adapter HTTP pro POST /v1/messages do outbox-gateway-demo. */
 final class OutboxReminderSender implements ReminderSender
 {
     public function send(IdempotencyKey $key, PhoneNumber $recipient, string $body): DeliveryResult
     {
+        $idempotencyKey = Config::string('services.outbox.key_prefix').$key->value;
+
         try {
             $response = Http::baseUrl(Config::string('services.outbox.url'))
                 ->timeout(Config::integer('services.outbox.timeout'))
                 ->connectTimeout(Config::integer('services.outbox.connect_timeout'))
                 ->acceptJson()
-                ->withHeaders(['Idempotency-Key' => Config::string('services.outbox.key_prefix').$key->value])
+                ->withHeaders(['Idempotency-Key' => $idempotencyKey])
                 ->post('/v1/messages', ['recipient' => $recipient->value, 'body' => $body]);
         } catch (ConnectionException $e) {
-            // timeout ou gateway fora: não dá pra saber se chegou, então tenta de novo com a mesma chave
-            return new DeliveryResult(DeliveryOutcome::RetryLater, null, $e->getMessage());
+            // timeout ou gateway fora: não dá pra saber se chegou, então tenta de novo com a mesma chave.
+            // a mensagem crua (host e porta internos) fica no log, o tenant vê só o resumo
+            Log::warning('outbox sem resposta', ['key' => $idempotencyKey, 'error' => $e->getMessage()]);
+
+            return new DeliveryResult(DeliveryOutcome::RetryLater, null, 'Sem resposta do gateway.');
         }
 
         $status = $response->status();
@@ -40,10 +46,15 @@ final class OutboxReminderSender implements ReminderSender
             default => DeliveryOutcome::Rejected,
         };
 
+        if (! $response->successful()) {
+            // o corpo pode ecoar o destinatário ou detalhe do provedor: só no log do servidor
+            Log::warning('outbox recusou ou falhou', ['key' => $idempotencyKey, 'status' => $status, 'body' => mb_substr($response->body(), 0, 500)]);
+        }
+
         return new DeliveryResult(
             $outcome,
             $status,
-            $response->successful() ? null : mb_substr($response->body(), 0, 500),
+            $response->successful() ? null : "Gateway respondeu HTTP $status.",
             $outcome === DeliveryOutcome::RetryLater ? $this->retryAfter($response->header('Retry-After')) : null,
         );
     }

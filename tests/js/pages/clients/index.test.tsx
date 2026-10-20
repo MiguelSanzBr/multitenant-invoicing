@@ -4,6 +4,8 @@ import ClientsIndex from '@/pages/clients/index';
 
 const page = (data: Array<{ id: number; name: string; email: string | null; phone: string }>, prev: string | null = null, next: string | null = null) => ({
     data,
+    current_page: 1,
+    last_page: 1,
     prev_page_url: prev,
     next_page_url: next,
 });
