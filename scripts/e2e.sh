@@ -8,18 +8,30 @@ set -euo pipefail
 export COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-multitenant-invoicing-e2e}"
 # UID é readonly no bash, mas dá pra exportar; sem isso a imagem sai com 1000 e o bind mount quebra no CI
 export UID GID="${GID:-$(id -g)}"
-BASE="http://localhost:8000"
+# portas próprias pra rodar com a stack de dev no ar sem brigar pelo bind
+export APP_PORT="${APP_PORT:-18000}" DB_PORT_HOST="${DB_PORT_HOST:-15434}"
+BASE="http://localhost:$APP_PORT"
+LOGS="${E2E_LOGS:-e2e-logs.txt}"
 
 dc() { docker compose --profile outbox "$@"; }
 app_sql() { dc exec -T db psql -U invoicing -d invoicing -tAc "$1"; }
 gw_sql() { dc exec -T db psql -U invoicing -d outbox -tAc "$1"; }
 
-cleanup() { dc down -v --remove-orphans >/dev/null 2>&1 || true; }
+# qualquer saída com erro (inclusive do set -e) despeja os logs antes de derrubar a stack
+cleanup() {
+    rc=$?
+    if [ "$rc" -ne 0 ]; then
+        dc logs --no-color > "$LOGS" 2>&1 || true
+        echo "logs da stack em $LOGS"
+        tail -n 60 "$LOGS" || true
+    fi
+    dc down -v --remove-orphans >/dev/null 2>&1 || true
+    exit "$rc"
+}
 trap cleanup EXIT
 
 fail() {
     echo "FALHOU: $*"
-    dc logs --tail=60 app queue outbox-gateway || true
     exit 1
 }
 
@@ -44,8 +56,8 @@ expect() {
 }
 
 dc up -d --build
-wait_for 300 "app" curl -fsS "$BASE/login"
-dc exec -T app php artisan db:seed --force >/dev/null
+# o setup semeia a demo na primeira subida
+wait_for 300 "app" curl -fsS "$BASE/up"
 
 expect "GET /login" "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/login")" 200
 
@@ -54,6 +66,7 @@ token=$(curl -fsS -X POST "$BASE/api/v1/tokens" -H 'Accept: application/json' \
     sed -E 's/.*"token":"([^"]+)".*/\1/')
 expect "API com token" "$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $token" -H 'Accept: application/json' "$BASE/api/v1/invoices")" 200
 expect "API sem token" "$(curl -s -o /dev/null -w '%{http_code}' -H 'Accept: application/json' "$BASE/api/v1/invoices")" 401
+expect "token sem ability de escrita não cria fatura" "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "Authorization: Bearer $token" -H 'Accept: application/json' "$BASE/api/v1/invoices")" 403
 
 # o gateway cria as tabelas dele na subida
 wait_for 120 "gateway" gw_sql "select 1 from outbox limit 1"
@@ -66,7 +79,7 @@ echo "ok  lembretes enviados pelo Laravel ($sent)"
 
 wait_for 60 "entrega no provedor" gateway_sent "$sent"
 expect "mensagens no gateway" "$(gw_sql 'select count(*) from messages')" "$sent"
-expect "chaves invoice-{id}-{data}" "$(gw_sql "select count(*) from messages where idempotency_key ~ '^invoice-[0-9]+-[0-9]{4}-[0-9]{2}-[0-9]{2}$'")" "$sent"
+expect "chaves {app}-{ambiente}-invoice-{id}-{data}" "$(gw_sql "select count(*) from messages where idempotency_key ~ '^multitenant-invoicing-local-invoice-[0-9]+-[0-9]{4}-[0-9]{2}-[0-9]{2}$'")" "$sent"
 
 # mesmo dia de novo: nada pode sair duplicado
 dc exec -T app php artisan invoices:mark-overdue
