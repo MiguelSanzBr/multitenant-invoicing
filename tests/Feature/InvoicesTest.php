@@ -9,6 +9,7 @@ use Inertia\Testing\AssertableInertia as Assert;
 beforeEach(function () {
     $this->user = User::factory()->create();
     $this->client = Client::factory()->for($this->user->company)->create();
+    Client::factory()->create(); // de outra empresa, criado antes do login pq o trait força a empresa do usuário logado
     $this->actingAs($this->user);
 });
 
@@ -36,8 +37,7 @@ it('lista as faturas com o cliente', function () {
             ->has('invoices.data', 2));
 });
 
-it('mostra o formulário com os clientes da empresa', function () {
-    Client::factory()->create();
+it('mostra o formulário só com os clientes da empresa', function () {
     $invoice = Invoice::factory()->for($this->client)->create();
 
     $this->get(route('invoices.create'))

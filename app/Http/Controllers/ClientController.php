@@ -53,6 +53,13 @@ class ClientController extends Controller
     public function destroy(Client $client): RedirectResponse
     {
         Gate::authorize('delete', $client);
+
+        if ($client->invoices()->exists()) {
+            Inertia::flash('toast', ['type' => 'error', 'message' => 'Cliente tem faturas, exclua as faturas antes.']);
+
+            return back();
+        }
+
         $client->delete();
 
         return $this->done('Cliente excluído.');

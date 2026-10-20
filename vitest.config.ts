@@ -19,6 +19,7 @@ export default defineConfig({
                 'resources/js/pages/clients/**',
                 'resources/js/pages/invoices/**',
                 'resources/js/pages/reminders/**',
+                'resources/js/lib/invoices.ts',
                 'resources/js/lib/money.ts',
                 'resources/js/lib/navigation.ts',
             ],
