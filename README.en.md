@@ -107,12 +107,12 @@ I ran this by hand with the `outbox` profile on: the command marked 6 seeded inv
 | Without a logged-in user the scope returns nothing | `TenancyTest` › sem usuário logado a consulta não devolve nada |
 | `company_id` comes from the user and ignores the payload | `TenancyTest` › preenche company_id com a empresa do usuário logado e ignora outra |
 | Every model with `company_id` uses the scope | `TenancyTest` › todo model com company_id usa o escopo de tenant |
-| Web IDOR: viewing, editing, paying, deleting and listing another company's client, invoice or reminder is a 404 and nothing changes | `tests/Feature/IdorTest.php` › web: ... |
+| Web IDOR: viewing, editing, paying and deleting another company's client or invoice is a 404 and nothing changes; lists return only the user's own company data (which also has records in the test) | `tests/Feature/IdorTest.php` › web: ... |
 | API IDOR: same through the API with a Sanctum token, with a positive control on the user's own resource | `IdorTest` › api › ... |
 | An invoice cannot point to another company's client | `IdorTest` › não cria fatura apontando pra cliente de outra empresa; `tests/Unit/Application/BillingUseCasesTest.php` › não cria nem move fatura pra cliente de outra empresa |
 | Invoice status transitions | `tests/Unit/Domain/InvoiceTest.php` |
 | Integer cents, BRL | `tests/Unit/Domain/ValueObjectsTest.php`, `InvoicesTest` › cria fatura em centavos e BRL, `tests/js/lib/money.test.ts` |
-| Domain and application do not depend on the framework | `tests/Unit/ArchTest.php` |
+| Domain and application do not depend on the framework; the six ports exist and are interfaces | `tests/Unit/ArchTest.php` |
 | `openapi.yaml` has exactly the API routes | `tests/Feature/OpenApiTest.php` |
 | Send with `Idempotency-Key` and the expected JSON | `tests/Feature/RemindersTest.php` › manda pro outbox gateway com Idempotency-Key e o JSON esperado |
 | 202/200 ok, 409 already sent, 5xx and timeout retry, other 4xx fail | `RemindersTest` › mapeia a resposta do gateway; timeout ou gateway fora do ar vira retry; 5xx faz o job lançar exceção; 4xx falha o job sem retry |
@@ -133,7 +133,7 @@ Test names are in Portuguese. PHP tests run against real Postgres (`invoicing_te
 
 ### Mutation check
 
-`scripts/mutation-check.sh` breaks each protection on purpose, runs the whole suite and restores the file. Real output from the last run:
+`scripts/mutation-check.sh` breaks each protection on purpose, runs the whole suite and restores the file, even if the run is interrupted (trap on `EXIT`, `INT` and `TERM`). Real output from the last run:
 
 ```
 PEGO   sem escopo de tenant ->  Tests:    18 failed, 111 passed (425 assertions)
@@ -149,6 +149,8 @@ PEGO   retry_after menor q o timeout ->  Tests:    1 failed, 128 passed (461 ass
 ## Known limits
 
 - No sign-up or invites: companies and users come from the seed. I also removed password reset, email verification, 2FA and passkeys from the starter kit.
+- A paid invoice can be deleted by the owner. There is no soft delete or audit trail, so its history goes with it (its reminders included).
+- Expired tokens stay in `personal_access_tokens` until someone runs `php artisan sanctum:prune-expired`; I did not schedule it.
 - In practice only BRL. `Money` accepts another currency, but the UI and form assume reais.
 - Fixed timezone `America/Sao_Paulo` (`APP_TIMEZONE`), which defines what "overdue today" means.
 - The key is per invoice and per day. If someone edits the invoice after that day's reminder, the local log already has the key and nothing goes out; even if it reached the gateway, it would answer 409 (same key, different content), which counts as already sent. The reminder with the corrected amount only goes out the next day.
@@ -172,6 +174,8 @@ The code is bind-mounted into the container and the image runs as UID/GID 1000 b
 ```bash
 env UID=$(id -u) GID=$(id -g) docker compose up -d --build
 ```
+
+Postgres is also published on the host on port **5434** (not 5432, so it doesn't clash with another local Postgres): `psql -h localhost -p 5434 -U invoicing invoicing`, password `invoicing`.
 
 Open http://localhost:8000. Seeded users, password `password` for all:
 

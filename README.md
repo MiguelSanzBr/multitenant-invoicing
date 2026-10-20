@@ -107,12 +107,12 @@ Rodei isso na mão com o profile `outbox` ligado: o comando marcou 6 faturas do 
 | Sem usuário logado o escopo devolve vazio | `TenancyTest` › sem usuário logado a consulta não devolve nada |
 | `company_id` vem do usuário e ignora o payload | `TenancyTest` › preenche company_id com a empresa do usuário logado e ignora outra |
 | Todo model com `company_id` usa o escopo | `TenancyTest` › todo model com company_id usa o escopo de tenant |
-| IDOR web: ver, editar, pagar, apagar e listar cliente, fatura e lembrete de outra empresa dá 404 e nada muda | `tests/Feature/IdorTest.php` › web: ... |
+| IDOR web: ver, editar, pagar e apagar cliente e fatura de outra empresa dá 404 e nada muda; as listas trazem só os dados da própria empresa (q também tem registros no teste) | `tests/Feature/IdorTest.php` › web: ... |
 | IDOR API: o mesmo pela API com token Sanctum, com controle positivo no próprio recurso | `IdorTest` › api › ... |
 | Fatura não aponta pra cliente de outra empresa | `IdorTest` › não cria fatura apontando pra cliente de outra empresa; `tests/Unit/Application/BillingUseCasesTest.php` › não cria nem move fatura pra cliente de outra empresa |
 | Transições de status da fatura | `tests/Unit/Domain/InvoiceTest.php` |
 | Valor em centavos inteiros, BRL | `tests/Unit/Domain/ValueObjectsTest.php`, `InvoicesTest` › cria fatura em centavos e BRL, `tests/js/lib/money.test.ts` |
-| Domínio e aplicação não dependem de framework | `tests/Unit/ArchTest.php` |
+| Domínio e aplicação não dependem de framework; as seis portas existem e são interfaces | `tests/Unit/ArchTest.php` |
 | `openapi.yaml` tem exatamente as rotas da API | `tests/Feature/OpenApiTest.php` |
 | Envio com `Idempotency-Key` e o JSON esperado | `tests/Feature/RemindersTest.php` › manda pro outbox gateway com Idempotency-Key e o JSON esperado |
 | 202/200 ok, 409 já enviado, 5xx e timeout retry, outro 4xx falha | `RemindersTest` › mapeia a resposta do gateway; timeout ou gateway fora do ar vira retry; 5xx faz o job lançar exceção; 4xx falha o job sem retry |
@@ -133,7 +133,7 @@ Os testes PHP rodam contra Postgres de verdade (`invoicing_test`), nunca SQLite.
 
 ### Checagem de mutação
 
-`scripts/mutation-check.sh` quebra cada proteção de propósito, roda a suíte inteira e restaura o arquivo. Saída real da última rodada:
+`scripts/mutation-check.sh` quebra cada proteção de propósito, roda a suíte inteira e restaura o arquivo, inclusive se a execução for interrompida (trap em `EXIT`, `INT` e `TERM`). Saída real da última rodada:
 
 ```
 PEGO   sem escopo de tenant ->  Tests:    18 failed, 111 passed (425 assertions)
@@ -149,6 +149,8 @@ Toda mutação fez pelo menos um teste falhar.
 ## Limites conhecidos
 
 - Não tem cadastro nem convite de usuário: empresas e usuários vêm do seed. Também tirei do starter kit reset de senha, verificação de e-mail, 2FA e passkeys.
+- Fatura paga pode ser excluída pelo dono. Não tem soft delete nem trilha de auditoria, então o histórico some junto (inclusive os lembretes dela).
+- Token expirado continua na tabela `personal_access_tokens` até alguém rodar `php artisan sanctum:prune-expired`; não agendei isso.
 - Na prática só BRL. O `Money` aceita outra moeda, mas a UI e o form assumem real.
 - Fuso fixo em `America/Sao_Paulo` (`APP_TIMEZONE`), q define o q é "vencido hoje".
 - A chave é por fatura e por dia. Se alguém editar a fatura depois do lembrete do dia, o log local já tem a chave e nada sai; mesmo se chegasse no gateway, ele responderia 409 (mesma chave com outro conteúdo), q conta como já enviado. O lembrete com o valor corrigido só sai no dia seguinte.
@@ -172,6 +174,8 @@ O código entra no container por bind mount e a imagem roda com UID/GID 1000 por
 ```bash
 env UID=$(id -u) GID=$(id -g) docker compose up -d --build
 ```
+
+O Postgres também fica exposto no host na porta **5434** (não 5432, pra não brigar com outro Postgres local): `psql -h localhost -p 5434 -U invoicing invoicing`, senha `invoicing`.
 
 Abre http://localhost:8000. Usuários do seed, senha `password` pra todos:
 
