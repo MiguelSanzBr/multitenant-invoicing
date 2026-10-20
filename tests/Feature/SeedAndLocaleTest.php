@@ -6,6 +6,7 @@ use App\Domain\Billing\InvoiceStatus;
 use App\Infrastructure\Persistence\Models\Invoice;
 use App\Infrastructure\Persistence\Models\User;
 use Database\Factories\InvoiceFactory;
+use Database\Seeders\DatabaseSeeder;
 
 it('seed cria duas empresas com dono e membro que conseguem entrar', function () {
     $this->seed();
@@ -38,6 +39,7 @@ it('seed usa descrições de fatura em português', function () {
 it('seed de demo se recusa a rodar em produção', function () {
     app()->detectEnvironment(fn () => 'production');
 
-    expect(fn () => $this->seed())->toThrow(RuntimeException::class, 'Seed de demo (senha password) não roda em produção.')
+    // direto no seeder: o db:seed em produção pararia antes, pedindo confirmação
+    expect(fn () => app(DatabaseSeeder::class)->run())->toThrow(RuntimeException::class, 'Seed de demo (senha password) não roda em produção.')
         ->and(User::count())->toBe(0);
 });

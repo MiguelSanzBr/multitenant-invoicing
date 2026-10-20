@@ -12,12 +12,18 @@ use Database\Factories\InvoiceFactory;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Seeder;
+use RuntimeException;
 
 // duas empresas pra dar pra testar o isolamento na mão. Senha de todo mundo: password
 class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
+        // usuários com senha conhecida e papel de dono: um db:seed por engano em produção vira porta aberta
+        if (app()->isProduction()) {
+            throw new RuntimeException('Seed de demo (senha password) não roda em produção.');
+        }
+
         $acme = Company::create(['name' => 'Acme']);
         UserFactory::new()->owner()->create(['company_id' => $acme->id, 'name' => 'Dona da Acme', 'email' => 'dona@acme.test']);
         UserFactory::new()->create(['company_id' => $acme->id, 'name' => 'Membro da Acme', 'email' => 'membro@acme.test']);
