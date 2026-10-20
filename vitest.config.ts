@@ -15,7 +15,7 @@ export default defineConfig({
             provider: 'v8',
             // só o código escrito neste repo, o resto é do starter kit (lista no README)
             include: [
-                'resources/js/pages/dashboard.tsx',
+                'resources/js/components/pagination.tsx',
                 'resources/js/pages/clients/**',
                 'resources/js/pages/invoices/**',
                 'resources/js/pages/reminders/**',

@@ -32,13 +32,15 @@ describe('clients/form', () => {
 
     it('mostra os erros de validação', async () => {
         vi.spyOn(router, 'post').mockImplementation((_url, _data, options) => {
-            options?.onError?.({ name: 'O nome é obrigatório.' });
+            options?.onError?.({ phone: 'Telefone inválido.' });
         });
         render(<ClientForm />);
 
+        await userEvent.type(screen.getByLabelText('Nome'), 'Ana');
+        await userEvent.type(screen.getByLabelText('Telefone (WhatsApp)'), '1');
         await userEvent.click(screen.getByRole('button', { name: 'Salvar' }));
 
-        expect(await screen.findByText('O nome é obrigatório.')).toBeInTheDocument();
+        expect(await screen.findByText('Telefone inválido.')).toBeInTheDocument();
     });
 
     it('dono exclui depois de confirmar', async () => {
