@@ -9,9 +9,11 @@ use App\Infrastructure\Persistence\Models\Client;
 use App\Infrastructure\Persistence\Models\Company;
 use App\Infrastructure\Persistence\Models\Concerns\BelongsToCompany;
 use App\Infrastructure\Persistence\Models\Invoice;
+use App\Infrastructure\Persistence\Models\Reminder;
 use App\Infrastructure\Persistence\Models\Scopes\CompanyScope;
 use App\Infrastructure\Persistence\Models\User;
 use Illuminate\Auth\AuthenticationException;
+use Illuminate\Database\Eloquent\MassAssignmentException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -39,7 +41,8 @@ it('preenche company_id com a empresa do usuário logado e ignora outra', functi
     $other = Company::factory()->create();
 
     $this->actingAs($user);
-    $client = Client::create(['name' => 'Ana', 'phone' => '5511999990000', 'company_id' => $other->id]);
+    $client = (new Client)->forceFill(['name' => 'Ana', 'phone' => '5511999990000', 'company_id' => $other->id]);
+    $client->save();
 
     expect($client->company_id)->toBe($user->company_id)
         ->and($client->company->is($user->company))->toBeTrue();
@@ -82,3 +85,13 @@ it('regra de cliente com fatura vale mesmo sem usuário logado, sem depender do 
     expect($repository->existsForClient($domain($client)))->toBeTrue()
         ->and($repository->existsForClient($domain($lonely)))->toBeFalse();
 });
+
+it('model de tenant não aceita mass assignment, escrita passa pelo repositório', function (string $model, array $attributes) {
+    $this->actingAs(User::factory()->create());
+
+    expect(fn () => $model::create($attributes))->toThrow(MassAssignmentException::class);
+})->with([
+    'cliente' => [Client::class, ['name' => 'Ana', 'phone' => '5511999990000']],
+    'fatura paga pelo payload' => [Invoice::class, ['status' => 'paid', 'paid_at' => '2026-10-20']],
+    'lembrete' => [Reminder::class, ['outcome' => 'sent']],
+]);
