@@ -18,3 +18,10 @@ afterEach(() => {
     cleanup();
     vi.restoreAllMocks();
 });
+
+// o checkbox do radix (login) usa ResizeObserver, q o jsdom não tem
+globalThis.ResizeObserver ??= class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+};
