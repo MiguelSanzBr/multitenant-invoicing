@@ -77,7 +77,9 @@ it('ainda não apaga cliente com fatura, mas apaga a empresa inteira', function 
     $invoice = Invoice::factory()->for($this->client)->create();
     rawReminder($invoice->id);
 
-    expect(fn () => DB::table('clients')->where('id', $this->client->id)->delete())->toThrow(QueryException::class);
+    // a transação aninhada vira savepoint, senão o erro aborta a transação do teste
+    expect(fn () => DB::transaction(fn () => DB::table('clients')->where('id', $this->client->id)->delete()))
+        ->toThrow(QueryException::class, 'invoices_company_id_client_id_foreign');
 
     Company::whereKey($this->client->company_id)->delete();
 
