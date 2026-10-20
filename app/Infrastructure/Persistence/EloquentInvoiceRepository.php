@@ -58,15 +58,12 @@ final class EloquentInvoiceRepository implements CrossTenantInvoices, InvoiceRep
         return InvoiceModel::where('client_id', $clientId)->exists();
     }
 
-    public function openPastDue(DateTimeImmutable $today): array
+    public function markOpenPastDueAsOverdue(DateTimeImmutable $today): int
     {
-        return array_values($this->allTenants()
+        return $this->allTenants()
             ->where('status', InvoiceStatus::Open)
             ->where('due_date', '<', $today->format('Y-m-d'))
-            ->orderBy('id')
-            ->get()
-            ->map(fn (InvoiceModel $model) => $this->toDomain($model))
-            ->all());
+            ->update(['status' => InvoiceStatus::Overdue]);
     }
 
     public function overdueIds(): array

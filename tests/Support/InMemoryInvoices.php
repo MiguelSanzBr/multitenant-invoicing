@@ -47,10 +47,12 @@ final class InMemoryInvoices implements CrossTenantInvoices, InvoiceRepository
         return array_any($this->items, fn (Invoice $i) => $i->clientId === $clientId);
     }
 
-    public function openPastDue(DateTimeImmutable $today): array
+    public function markOpenPastDueAsOverdue(DateTimeImmutable $today): int
     {
-        return array_values(array_filter($this->items,
-            fn (Invoice $i) => $i->status === InvoiceStatus::Open && $i->dueDate->isBefore($today)));
+        $late = array_filter($this->items, fn (Invoice $i) => $i->status === InvoiceStatus::Open && $i->dueDate->isBefore($today));
+        array_walk($late, fn (Invoice $i) => $i->markOverdue($today));
+
+        return count($late);
     }
 
     public function overdueIds(): array

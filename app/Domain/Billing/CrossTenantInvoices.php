@@ -14,8 +14,12 @@ interface CrossTenantInvoices
 {
     public function findAcrossTenants(int $id): ?Invoice;
 
-    /** @return list<Invoice> em aberto com vencimento antes de $today */
-    public function openPastDue(DateTimeImmutable $today): array;
+    /**
+     * Marca como vencidas as em aberto com vencimento antes de $today e devolve quantas.
+     * Mesma regra do Invoice::markOverdue, mas num UPDATE condicional: sem carregar a fatura
+     * não tem janela pra sobrescrever um pagamento feito no meio do caminho.
+     */
+    public function markOpenPastDueAsOverdue(DateTimeImmutable $today): int;
 
     /** @return list<int> ids das vencidas */
     public function overdueIds(): array;
