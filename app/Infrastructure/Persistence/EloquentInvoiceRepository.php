@@ -17,6 +17,7 @@ use App\Infrastructure\Persistence\Models\Scopes\CompanyScope;
 use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\LazyCollection;
 
 final class EloquentInvoiceRepository implements CrossTenantInvoices, InvoiceRepository
 {
@@ -84,14 +85,15 @@ final class EloquentInvoiceRepository implements CrossTenantInvoices, InvoiceRep
             ->update(['status' => InvoiceStatus::Overdue, 'version' => DB::raw('version + 1')]);
     }
 
-    public function overdueIds(): array
+    public function overdueIdChunks(int $size): iterable
     {
-        return array_values($this->allTenants()
+        return $this->allTenants()
             ->where('status', InvoiceStatus::Overdue)
-            ->orderBy('id')
-            ->get(['id'])
+            ->select('id')
+            ->lazyById($size)
             ->map(fn (InvoiceModel $model) => $model->id)
-            ->all());
+            ->chunk($size)
+            ->map(fn (LazyCollection $ids) => array_values($ids->all()));
     }
 
     /**

@@ -8,5 +8,10 @@ use DateTimeImmutable;
 
 interface ReminderQueue
 {
-    public function push(int $invoiceId, DateTimeImmutable $day): void;
+    /**
+     * Um bloco de faturas por vez: quem enfileira não paga um INSERT por fatura.
+     *
+     * @param  list<int>  $invoiceIds
+     */
+    public function push(array $invoiceIds, DateTimeImmutable $day): void;
 }

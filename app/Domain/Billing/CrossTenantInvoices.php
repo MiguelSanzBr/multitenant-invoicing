@@ -21,6 +21,10 @@ interface CrossTenantInvoices
      */
     public function markOpenPastDueAsOverdue(DateTimeImmutable $today): int;
 
-    /** @return list<int> ids das vencidas */
-    public function overdueIds(): array;
+    /**
+     * Ids das vencidas em blocos por id, sem carregar tudo na memória.
+     *
+     * @return iterable<list<int>>
+     */
+    public function overdueIdChunks(int $size): iterable;
 }

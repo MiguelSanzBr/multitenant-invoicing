@@ -9,8 +9,8 @@ use DateTimeImmutable;
 
 final class LaravelReminderQueue implements ReminderQueue
 {
-    public function push(int $invoiceId, DateTimeImmutable $day): void
+    public function push(array $invoiceIds, DateTimeImmutable $day): void
     {
-        SendInvoiceReminderJob::dispatch($invoiceId, $day->format('Y-m-d'));
+        QueueInvoiceRemindersJob::dispatch($invoiceIds, $day->format('Y-m-d'));
     }
 }
