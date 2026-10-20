@@ -6,7 +6,8 @@ use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\ReminderController;
 use Illuminate\Support\Facades\Route;
 
-Route::redirect('/', '/dashboard');
+// o starter kit usa a rota home nos layouts de login
+Route::get('/', fn () => redirect()->route('dashboard'))->name('home');
 
 Route::middleware('auth')->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
