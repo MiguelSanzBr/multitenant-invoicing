@@ -9,11 +9,11 @@ use DateTimeImmutable;
 
 final class SpyReminderQueue implements ReminderQueue
 {
-    /** @var list<array{int, string}> */
+    /** @var list<array{list<int>, string}> */
     public array $pushed = [];
 
-    public function push(int $invoiceId, DateTimeImmutable $day): void
+    public function push(array $invoiceIds, DateTimeImmutable $day): void
     {
-        $this->pushed[] = [$invoiceId, $day->format('Y-m-d')];
+        $this->pushed[] = [$invoiceIds, $day->format('Y-m-d')];
     }
 }

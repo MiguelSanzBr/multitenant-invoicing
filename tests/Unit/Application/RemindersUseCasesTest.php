@@ -48,15 +48,17 @@ it('vence as em aberto com vencimento no passado e enfileira lembrete de todas a
     $draft = invoiceFor($this->ana, InvoiceStatus::Draft, '2026-01-01');
     $queue = new SpyReminderQueue;
 
-    $marked = (new MarkOverdueInvoices($this->invoices, $queue))($this->today);
+    $marked = (new MarkOverdueInvoices($this->invoices, $queue, chunkSize: 2))($this->today);
 
     expect($marked)->toBe(2)
         ->and($this->invoices->items[$late->id]->status)->toBe(InvoiceStatus::Overdue)
         ->and($this->invoices->items[$otherCompany->id]->status)->toBe(InvoiceStatus::Overdue)
         ->and($this->invoices->items[$dueToday->id]->status)->toBe(InvoiceStatus::Open)
         ->and($this->invoices->items[$draft->id]->status)->toBe(InvoiceStatus::Draft)
-        ->and($queue->pushed)->toEqualCanonicalizing([
-            [$late->id, '2026-10-20'], [$otherCompany->id, '2026-10-20'], [$alreadyOverdue->id, '2026-10-20'],
+        // em blocos: o comando enfileira um job por bloco, não um por fatura
+        ->and($queue->pushed)->toBe([
+            [[$late->id, $otherCompany->id], '2026-10-20'],
+            [[$alreadyOverdue->id], '2026-10-20'],
         ]);
 });
 

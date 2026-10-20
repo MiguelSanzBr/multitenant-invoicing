@@ -8,6 +8,7 @@ use App\Domain\Billing\CrossTenantInvoices;
 use App\Domain\Billing\InvoiceStatus;
 use App\Domain\Billing\PhoneNumber;
 use App\Domain\Reminders\DeliveryOutcome;
+use App\Domain\Reminders\ReminderQueue;
 use App\Domain\Reminders\IdempotencyKey;
 use App\Infrastructure\Outbox\OutboxReminderSender;
 use App\Infrastructure\Persistence\Models\Client;
@@ -161,7 +162,8 @@ it('retry_after de toda conexão de fila é maior q o timeout do job e o timeout
 });
 
 it('comando diário vence as faturas e enfileira os lembretes', function () {
-    Queue::fake();
+    // só o job de lembrete é falso: o de bloco roda na fila síncrona e espalha os lembretes
+    Queue::fake([SendInvoiceReminderJob::class]);
     $late = Invoice::factory()->for($this->client)->create(['due_date' => '2026-10-19', 'status' => InvoiceStatus::Open]);
     $future = Invoice::factory()->for($this->client)->create(['due_date' => '2026-10-30', 'status' => InvoiceStatus::Open]);
 
@@ -171,6 +173,26 @@ it('comando diário vence as faturas e enfileira os lembretes', function () {
         ->and($future->fresh()?->status)->toBe(InvoiceStatus::Open);
     Queue::assertPushed(SendInvoiceReminderJob::class, 2);
     Queue::assertPushed(SendInvoiceReminderJob::class, fn ($job) => $job->invoiceId === $late->id && $job->day === '2026-10-20');
+});
+
+it('ids das vencidas saem em blocos por id, sem carregar tudo de uma vez', function () {
+    $more = Invoice::factory()->for($this->client)->count(2)->create(['status' => InvoiceStatus::Overdue]);
+    Invoice::factory()->for($this->client)->create(['status' => InvoiceStatus::Open]);
+
+    DB::enableQueryLog();
+    $chunks = iterator_to_array(app(CrossTenantInvoices::class)->overdueIdChunks(2), false);
+
+    expect($chunks)->toBe([[$this->invoice->id, $more[0]->id], [$more[1]->id]])
+        ->and(DB::getQueryLog())->toHaveCount(2);
+});
+
+it('job de bloco enfileira um lembrete por fatura do bloco', function () {
+    Queue::fake([SendInvoiceReminderJob::class]);
+
+    app(ReminderQueue::class)->push([7, 8], new DateTimeImmutable('2026-10-20'));
+
+    Queue::assertPushed(SendInvoiceReminderJob::class, 2);
+    Queue::assertPushed(SendInvoiceReminderJob::class, fn ($job) => $job->invoiceId === 8 && $job->day === '2026-10-20');
 });
 
 it('marca as vencidas num UPDATE só, sem janela pra desfazer pagamento', function () {

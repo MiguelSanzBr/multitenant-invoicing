@@ -62,8 +62,10 @@ final class InMemoryInvoices implements CrossTenantInvoices, InvoiceRepository
         return count($late);
     }
 
-    public function overdueIds(): array
+    public function overdueIdChunks(int $size): iterable
     {
-        return array_keys(array_filter($this->items, fn (Invoice $i) => $i->status === InvoiceStatus::Overdue));
+        $ids = array_keys(array_filter($this->items, fn (Invoice $i) => $i->status === InvoiceStatus::Overdue));
+
+        return array_chunk($ids, $size);
     }
 }
