@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import ClientsIndex from './index';
+import ClientsIndex from '@/pages/clients/index';
 
 const page = (data: Array<{ id: number; name: string; email: string | null; phone: string }>, prev: string | null = null, next: string | null = null) => ({
     data,

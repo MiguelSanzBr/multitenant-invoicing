@@ -9,8 +9,9 @@ export default defineConfig({
     },
     test: {
         environment: 'jsdom',
-        setupFiles: ['resources/js/test/setup.ts'],
-        include: ['resources/js/**/*.test.{ts,tsx}'],
+        setupFiles: ['tests/js/setup.ts'],
+        // fora de resources/js pq o glob de páginas do Inertia pegaria os testes no build
+        include: ['tests/js/**/*.test.{ts,tsx}'],
         coverage: {
             provider: 'v8',
             // só o código escrito neste repo, o resto é do starter kit (lista no README)
@@ -24,7 +25,6 @@ export default defineConfig({
                 'resources/js/lib/money.ts',
                 'resources/js/lib/navigation.ts',
             ],
-            exclude: ['**/*.test.{ts,tsx}'],
             thresholds: { lines: 100, functions: 100, branches: 100, statements: 100 },
         },
     },

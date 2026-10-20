@@ -3,7 +3,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { Invoice } from '@/types/models';
-import InvoicesIndex from './index';
+import InvoicesIndex from '@/pages/invoices/index';
 
 const invoice = (overrides: Partial<Invoice>): Invoice => ({
     id: 1,

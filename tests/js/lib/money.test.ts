@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatBRL, parseBRL } from './money';
+import { formatBRL, parseBRL } from '@/lib/money';
 
 describe('money', () => {
     it('formata centavos em reais', () => {

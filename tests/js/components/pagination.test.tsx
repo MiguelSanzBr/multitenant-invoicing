@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { expect, it } from 'vitest';
-import Pagination from './pagination';
+import Pagination from '@/components/pagination';
 
 it('na primeira página só mostra a próxima', () => {
     render(<Pagination prev={null} next="/x?page=2" />);

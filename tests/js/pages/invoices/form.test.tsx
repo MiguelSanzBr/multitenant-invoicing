@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { Invoice } from '@/types/models';
-import InvoiceForm from './form';
+import InvoiceForm from '@/pages/invoices/form';
 
 const clients = [
     { id: 2, name: 'Ana' },

@@ -2,7 +2,7 @@ import { router, usePage } from '@inertiajs/react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import ClientForm from './form';
+import ClientForm from '@/pages/clients/form';
 
 const client = { id: 3, name: 'Ana', email: null, phone: '5511999990000' };
 

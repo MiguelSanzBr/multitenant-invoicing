@@ -1,7 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { Reminder } from '@/types/models';
-import RemindersIndex from './index';
+import RemindersIndex from '@/pages/reminders/index';
 
 const reminder = (overrides: Partial<Reminder>): Reminder => ({
     id: 1,

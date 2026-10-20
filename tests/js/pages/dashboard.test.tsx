@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { expect, it } from 'vitest';
-import Dashboard from './dashboard';
+import Dashboard from '@/pages/dashboard';
 
 it('mostra quantidade e valor por status', () => {
     render(
