@@ -98,7 +98,7 @@ services:
   # fixado num commit: push no outro repo não muda o CI daqui sem um commit explícito subindo a versão
   outbox-gateway:
     profiles: ["outbox"]
-    build: https://github.com/MiguelSanzBr/outbox-gateway-demo.git#613a7e7ed33b459f70118b4ddd58aa57bfb9269e
+    build: https://github.com/MiguelSanzBr/outbox-gateway-demo.git#0308aca6f56789b167acf67bf21755fff33292dd
     command: ["/gateway"]
     environment:
       DATABASE_URL: postgres://invoicing:${DB_PASSWORD:-invoicing}@db:5432/outbox
@@ -109,7 +109,7 @@ services:
 
   outbox-mock:
     profiles: ["outbox"]
-    build: https://github.com/MiguelSanzBr/outbox-gateway-demo.git#613a7e7ed33b459f70118b4ddd58aa57bfb9269e
+    build: https://github.com/MiguelSanzBr/outbox-gateway-demo.git#0308aca6f56789b167acf67bf21755fff33292dd
     command: ["/mockprovider"]
 
 volumes:
