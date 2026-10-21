@@ -1,9 +1,9 @@
 # dev: o q o compose usa, com bind mount, composer, node e pcov (contexto: docker/)
 # prod: imagem fechada com o código, sem dev deps, opcache e usuário sem root (contexto: raiz do repo)
 #   docker build -f docker/Dockerfile --target prod -t multitenant-invoicing:prod .
-FROM node:22-bookworm-slim AS node
+FROM node:26-bookworm-slim AS node
 
-FROM php:8.4-cli-bookworm AS dev
+FROM php:8.5-cli-bookworm AS dev
 RUN apt-get update \
  && apt-get install -y --no-install-recommends git unzip libpq-dev libicu-dev libzip-dev \
  && docker-php-ext-install pdo_pgsql pcntl intl zip bcmath \
