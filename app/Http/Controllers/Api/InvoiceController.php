@@ -16,6 +16,7 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
 
+// o caso de uso devolve a entidade, mas a resposta relê pelo model: leitura é Eloquent + Resource, igual às listas
 class InvoiceController
 {
     public function index(): AnonymousResourceCollection
