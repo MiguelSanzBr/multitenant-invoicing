@@ -163,7 +163,7 @@ jobs:
       # mutação geral no domínio, nos casos de uso e nos adapters. Começou em 83,4% e subiu matando
       # os mutantes q escapavam; o q sobra é equivalente (cast redundante, fallback do worker). O mínimo só sobe
       - name: pest --mutate em Domain, Application e Infrastructure
-        run: vendor/bin/pest --mutate --path=app/Domain,app/Application,app/Infrastructure --covered-only --parallel --min=95
+        run: vendor/bin/pest --mutate --path=app/Domain,app/Application,app/Infrastructure --covered-only --parallel --min=97
 
   # a imagem de produção builda e responde no /up
   image:
