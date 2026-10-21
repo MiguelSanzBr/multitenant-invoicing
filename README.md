@@ -1,14 +1,54 @@
 # multitenant-invoicing
 
+[![ci](https://github.com/MiguelSanzBr/multitenant-invoicing/actions/workflows/ci.yml/badge.svg)](https://github.com/MiguelSanzBr/multitenant-invoicing/actions/workflows/ci.yml)
+![PHP 8.4](https://img.shields.io/badge/PHP-8.4-777BB4)
+![Laravel 13](https://img.shields.io/badge/Laravel-13-FF2D20)
+![cobertura 100%](https://img.shields.io/badge/cobertura-100%25-brightgreen)
+[![licença MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-blue)](LICENSE)
+
 SaaS pequeno de faturamento multi-tenant em Laravel 13 + Inertia + React. Cada empresa tem seus usuários (dono ou membro), clientes e faturas em BRL. Todo dia um comando marca as faturas vencidas e manda um lembrete por WhatsApp pelo [outbox-gateway-demo](https://github.com/MiguelSanzBr/outbox-gateway-demo), meu outro projeto.
 
 [English version](README.en.md)
+
+![Lista de faturas com status por cor](docs/invoices.png)
+
+**O problema.** Num SaaS com várias empresas no mesmo banco, os dois bugs q mais doem são uma empresa ver dado da outra e o cliente receber a mesma cobrança duas vezes. Eu vi os dois em produção. Esse repo é o desenho q eu faria hoje pra nenhum dos dois acontecer, com teste quebrando se alguém tirar a proteção.
+
+**O q ele garante:**
+
+- Usuário só enxerga a própria empresa, na web e na API. Id de outra empresa dá 404, igual a id q não existe.
+- O banco também segura: fatura não aponta pra cliente de outra empresa, lembrete não aponta pra fatura de outra empresa (FK composta).
+- Um lembrete por fatura por dia, mesmo com retry de fila, comando rodando duas vezes ou worker morrendo no meio do envio.
+- Pagamento feito enquanto o comando diário roda não é desfeito (UPDATE condicional e locking otimista).
+- Canal de SMS com teto: no máximo 3 lembretes por fatura e cota diária por empresa.
+
+## Como rodar
+
+Precisa só de Docker.
+
+```bash
+docker compose up -d --build   # app, Postgres 17, fila, scheduler, build do Vite e seed da demo
+```
+
+Abre http://localhost:8000. A tela de login lista os usuários de demo (senha `password` pra todos):
+
+| E-mail | Empresa | Papel |
+|---|---|---|
+| dona@acme.test | Acme | dona |
+| membro@acme.test | Acme | membro (não exclui) |
+| dono@globex.test | Globex | dono |
+
+Entra com a Acme e com a Globex pra ver q uma não enxerga a outra. Detalhes (UID/GID, lembretes, API, imagem de produção) em [Rodando em detalhe](#rodando-em-detalhe).
+
+| Login com os usuários de demo | Painel | Lembretes |
+|---|---|---|
+| ![Login](docs/login.png) | ![Painel](docs/dashboard.png) | ![Lembretes](docs/reminders.png) |
 
 ## Por que esse repo existe
 
 Ele leva pra código público duas lições q tive no trabalho:
 
-1. **Vazamento entre tenants do tipo IDOR num CRM.** Bastava trocar o id na URL pra ver dado de outra empresa. Aqui o isolamento não depende de cada controller lembrar de filtrar: o filtro mora no model e falha fechado.
+1. **Vazamento entre tenants do tipo IDOR num CRM.** Bastava trocar o id na URL pra ver dado de outra empresa. Aqui o isolamento não depende de cada controller lembrar de filtrar: o filtro mora no model, falha fechado e o banco confere de novo.
 2. **Envio duplicado causado por retry de fila.** O job demorou, a fila achou q ele tinha morrido, entregou de novo e a mensagem saiu duas vezes. Aqui o job é único por fatura e por dia, o `retry_after` da fila é maior q o `timeout` do job e o envio leva uma chave de idempotência pro gateway descartar repetição.
 
 As duas coisas são resolvidas no desenho e cada uma tem teste q quebra se alguém tirar a proteção (ver [Checagem de mutação](#checagem-de-mutação)).
@@ -22,67 +62,79 @@ Hexagonal no jeito Laravel: o domínio é PHP puro no centro, o framework fica n
                  │  Controllers web (Inertia)  ·  API /api/v1 (Sanctum)  ·  invoices:mark-overdue │
                  └───────────────┬───────────────────────────────────────────────┬───────────────┘
                                  │ escrita                                       │ leitura
-                                 ▼                                               │ (direto no Eloquent,
-                 ┌─────────── Application (casos de uso) ───────────┐            │  com escopo de tenant)
-                 │ CreateInvoice · UpdateInvoice · MarkInvoicePaid  │            │
-                 │ DeleteInvoice · SaveClient · DeleteClient        │            │
-                 │ MarkOverdueInvoices · SendInvoiceReminder        │            │
+                                 ▼                                               │ (Eloquent com escopo
+                 ┌─────────── Application (casos de uso) ───────────┐            │  de tenant, saída
+                 │ CreateInvoice · UpdateInvoice · MarkInvoicePaid  │            │  pelos Resources)
+                 │ DeleteInvoice · CreateClient · UpdateClient      │            │
+                 │ DeleteClient · MarkOverdueInvoices               │            │
+                 │ SendInvoiceReminder                              │            │
                  └───────────────┬──────────────────────────────────┘            │
                                  ▼                                               │
                  ┌──────────────── Domain (PHP puro) ───────────────┐            │
                  │ Invoice (draft→open→paid/overdue) · Client       │            │
                  │ Money · DueDate · PhoneNumber · IdempotencyKey   │            │
+                 │ ReminderLimits                                   │            │
                  │ portas: InvoiceRepository · ClientRepository     │            │
+                 │ CrossTenantInvoices · CrossTenantClients         │            │
                  │ ReminderSender · ReminderLog · ReminderQueue     │            │
                  │ TenantContext                                    │            │
                  └───────────────▲──────────────────────────────────┘            │
                                  │ implementa                                    ▼
                  ┌──────────────── Infrastructure (adapters de saída) ───────────────────────────┐
                  │ Models Eloquent + escopo de tenant · repositórios Eloquent                    │
-                 │ OutboxReminderSender (HTTP) · SendInvoiceReminderJob (fila) · AuthTenantContext │
+                 │ OutboxReminderSender (HTTP) · jobs da fila · AuthTenantContext                 │
                  └────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-- `app/Domain`: entidades, value objects e interfaces. Nenhum `Illuminate`, `Carbon` ou outra camada. A fatura só muda de status por método (`open`, `markPaid`, `markOverdue`, `edit`) e recusa transição inválida com `RuleViolation`.
+- `app/Domain`: entidades, value objects e interfaces. Nenhum `Illuminate`, `Carbon` ou outra camada. A fatura só muda de status por método (`open`, `revertToDraft`, `markPaid`, `markOverdue`) e recusa transição inválida com `RuleViolation`. A edição mexe só nos dados. Value object com valor inválido lança `InvalidValue` (422).
 - `app/Application`: um caso de uso por classe, dependendo só das portas do domínio.
 - `app/Infrastructure`: Eloquent, fila, HTTP e auth. O escopo global de tenant fica aqui pq é detalhe de persistência.
 - `app/Http` e `app/Console`: controllers, policies, form requests, resources e o comando diário. Toda escrita passa por caso de uso.
 
-A regra de dependência é verificada por teste de arquitetura do Pest (`tests/Unit/ArchTest.php`), q roda junto com a suíte no CI.
+A regra de dependência é verificada por teste de arquitetura do Pest (`tests/Unit/ArchTest.php`): domínio e aplicação sem framework, `Http` sem usar adapter de saída direto, `declare(strict_types=1)` em todo arquivo, classes do domínio finais e só o comando diário e o job de lembrete usando as portas q atravessam empresas.
 
 **Por que assim.** As regras q importam (transição de status, valor em centavos, chave de idempotência, o q fazer com cada resposta do gateway) ficam testáveis sem banco nem HTTP, com repositório em memória. O Laravel continua fazendo o q faz bem: rota, validação, fila, Eloquent.
 
-**Onde fui pragmático.** Leitura (listas, painel, histórico) vai direto no Eloquent dentro do controller, com o escopo de tenant aplicado. Criar um caso de uso e um DTO pra cada listagem seria cerimônia sem regra nenhuma dentro. Policies continuam como autorização de "quem pode" (mesma empresa, dono pra excluir) e o domínio responde "pode nesse estado?".
+**Onde fui pragmático.** Leitura (listas, painel, histórico) vai direto no Eloquent dentro do controller, com o escopo de tenant aplicado, e sai pelos mesmos Resources da API. Criar um caso de uso e um DTO pra cada listagem seria cerimônia sem regra nenhuma dentro. Policies continuam como autorização de "quem pode" (mesma empresa, dono pra excluir) e o domínio responde "pode nesse estado?".
 
 ## Isolamento por tenant
 
 - `BelongsToCompany` (trait) + `CompanyScope` (escopo global) em todo model com `company_id`: `Client`, `Invoice` e `Reminder`.
-- Com usuário logado a consulta filtra pela empresa dele. **Sem usuário o escopo devolve vazio**, não tudo. Job e comando q precisam atravessar empresas usam métodos com nome explícito (`findAcrossTenants`, `openPastDue`), fáceis de achar num review.
-- Ao criar, o `company_id` vem sempre do usuário logado e o valor do payload é ignorado.
-- Route model binding passa pelo escopo, então id de outra empresa vira 404, igual a id inexistente. Não dá pra descobrir se o id existe.
+- Com usuário logado a consulta filtra pela empresa dele. **Sem usuário o escopo devolve vazio**, não tudo.
+- Job e comando q precisam atravessar empresas usam portas separadas (`CrossTenantInvoices`, `CrossTenantClients`). Um arch test trava quem pode usar: só `MarkOverdueInvoices`, `SendInvoiceReminder` e os adapters. Caso de uso de tela não recebe isso nem por engano.
+- Ao criar, o `company_id` vem sempre do usuário logado e o valor do payload é ignorado. Os models de tenant não têm `fillable`: escrita só pelo repositório.
+- Route model binding passa pelo escopo, então id de outra empresa vira 404, igual a id inexistente.
 - `client_id` da fatura é validado contra a empresa do usuário no form request e de novo no caso de uso.
-- Policies em toda ação, web e API.
+- No banco: `unique(company_id, id)` e FK composta `invoices(company_id, client_id)` e `reminders(company_id, invoice_id)`, mais CHECK de valor positivo, status válido e `paid_at` só quando paga. O job de lembrete ainda confere se cliente e fatura são da mesma empresa antes de mandar o SMS.
+- Policies em toda ação, web e API, com teste de cada uma pelas duas portas.
 - Um teste percorre `app/Infrastructure/Persistence/Models` e falha se algum model com `company_id` não usar o escopo. `User` é a única exceção, pq o login procura o usuário antes de existir tenant.
+- As props do Inertia saem pelos Resources: `company_id`, timestamps e coluna nova não vão pro HTML por padrão.
 
 ## Lembretes idempotentes e o outbox-gateway-demo
 
 ```
-09:00 invoices:mark-overdue ── marca open com vencimento no passado como overdue
+09:00 invoices:mark-overdue (onOneServer, mutex de 60 min)
           │
-          └─ pra cada fatura overdue: SendInvoiceReminderJob(invoice_id, dia)
-                  ShouldBeUnique, uniqueId = invoice-{id}-{Y-m-d}
-                  timeout 30s, retry_after da fila 90s, 5 tentativas com backoff
+          ├─ UPDATE invoices SET status='overdue' WHERE status='open' AND due_date < hoje   (um comando só)
+          │
+          └─ ids das vencidas em blocos de 500 (lazyById) → QueueInvoiceRemindersJob por bloco
+                  └─ SendInvoiceReminderJob(invoice_id, dia) por fatura
+                        ShouldBeUnique, uniqueId = invoice-{id}-{Y-m-d}
+                        timeout 30s, retry_after da fila 90s, backoff 60/300/900/3600s, prazo de 12h
+                        disjuntor: 10 falhas seguidas e os próximos voltam pra fila por 5 min sem chamar
                         │
                         ▼
               SendInvoiceReminder (caso de uso)
                 ├─ fatura não está mais overdue? não manda
                 ├─ já tem envio entregue com essa chave? não manda
+                ├─ fatura já recebeu 3 lembretes ou a empresa estourou a cota do dia? não manda
+                ├─ cliente de outra empresa? falha o job, sem SMS
                 └─ POST {OUTBOX_URL}/v1/messages
-                      Idempotency-Key: invoice-{id}-{Y-m-d}
+                      Idempotency-Key: {app}-{ambiente}-invoice-{id}-{Y-m-d}
                       {"recipient": <telefone do cliente>, "body": <texto>}
                         ├─ 202/200 → sent
                         ├─ 409     → already_sent (o gateway já tem a chave)
-                        ├─ 5xx ou timeout → retry_later, o job lança exceção e a fila tenta de novo
+                        ├─ 5xx, 408, 429 ou sem resposta → retry_later, volta pra fila (respeita o Retry-After)
                         └─ outro 4xx → rejected, o job falha sem retry
               cada tentativa vira uma linha na tabela reminders
 ```
@@ -90,84 +142,78 @@ A regra de dependência é verificada por teste de arquitetura do Pest (`tests/U
 O q segura a duplicata, em camadas:
 
 1. **Lock único** por fatura e por dia: rodar o comando duas vezes não enfileira o mesmo lembrete duas vezes.
-2. **`retry_after` (90s) maior q o `timeout` do job (30s)**, e o timeout HTTP (10s) menor q os dois. Foi exatamente o q causou a duplicata q eu vi: com `retry_after` menor, a fila entrega o job pra outro worker enquanto o primeiro ainda espera a resposta. Tem teste lendo a config e comparando.
-3. **Chave do dia em q foi enfileirado**, não do dia em q rodou. Um retry de madrugada reusa a chave e o gateway descarta.
-4. **Log local**: se já tem `sent` ou `already_sent` pra chave, o job nem chama o gateway.
+2. **`retry_after` (90s) maior q o `timeout` do job (30s)**, e o timeout HTTP (10s, conexão em 2s) menor q os dois. Foi exatamente o q causou a duplicata q eu vi: com `retry_after` menor, a fila entrega o job pra outro worker enquanto o primeiro ainda espera a resposta. Tem teste lendo a config e comparando, e outro conferindo q o client HTTP usa esses timeouts.
+3. **Chave do dia em q foi enfileirado**, não do dia em q rodou. Um retry de madrugada reusa a chave e o gateway descarta. No gateway a chave leva app e ambiente (`OUTBOX_KEY_PREFIX`), pra staging e produção no mesmo outbox não colidirem.
+4. **Log local**: se já tem `sent` ou `already_sent` pra chave, o job nem chama o gateway. No banco, um índice único parcial garante no máximo um `sent` por chave.
 5. **O gateway** descarta reenvio pela `Idempotency-Key`. É a última barreira pro caso de crash entre o gateway aceitar e o log ser gravado.
 
-O `OUTBOX_URL` é configurável. Sem o gateway no ar o envio dá erro de conexão, vira `retry_later` e o job volta pra fila. A compose tem um profile opcional q sobe o gateway e o mock de provedor direto do GitHub.
+O erro cru do gateway (host interno, corpo da resposta) vai só pro log do servidor. O histórico de lembretes do tenant mostra um resumo tipo "Gateway respondeu HTTP 422.".
 
-Rodei isso na mão com o profile `outbox` ligado: o comando marcou 6 faturas do seed como vencidas e as 6 saíram com 202. Rodar o comando de novo no mesmo dia não gerou mensagem nova no gateway (continuou com 6). Com o gateway parado, o lembrete de uma fatura ficou `retry_later` com `Could not resolve host: outbox-gateway`; subi o gateway e no retry seguinte, 60s depois, saiu com 202.
+Sem o gateway no ar o envio dá erro de conexão, vira `retry_later` e o job volta pra fila. A compose tem um profile opcional q sobe o gateway e o mock de provedor, fixados num commit do outro repo.
 
 ## Testes
 
 | Garantia | Teste |
 |---|---|
-| Usuário só enxerga dados da própria empresa | `tests/Feature/TenancyTest.php` › só enxerga dados da empresa do usuário logado |
-| Sem usuário logado o escopo devolve vazio | `TenancyTest` › sem usuário logado a consulta não devolve nada |
-| `company_id` vem do usuário e ignora o payload | `TenancyTest` › preenche company_id com a empresa do usuário logado e ignora outra |
+| Usuário só enxerga dados da própria empresa; sem usuário o escopo devolve vazio | `tests/Feature/TenancyTest.php` |
+| `company_id` vem do usuário e ignora o payload; models de tenant recusam mass assignment | `TenancyTest` |
 | Todo model com `company_id` usa o escopo | `TenancyTest` › todo model com company_id usa o escopo de tenant |
-| IDOR web: ver, editar, pagar e apagar cliente e fatura de outra empresa dá 404 e nada muda; as listas trazem só os dados da própria empresa (q também tem registros no teste) | `tests/Feature/IdorTest.php` › web: ... |
-| IDOR API: o mesmo pela API com token Sanctum, com controle positivo no próprio recurso | `IdorTest` › api › ... |
-| Fatura não aponta pra cliente de outra empresa | `IdorTest` › não cria fatura apontando pra cliente de outra empresa; `tests/Unit/Application/BillingUseCasesTest.php` › não cria nem move fatura pra cliente de outra empresa |
-| Transições de status da fatura | `tests/Unit/Domain/InvoiceTest.php` |
-| Valor em centavos inteiros, BRL | `tests/Unit/Domain/ValueObjectsTest.php`, `InvoicesTest` › cria fatura em centavos e BRL, `tests/js/lib/money.test.ts` |
-| Domínio e aplicação não dependem de framework; as seis portas existem e são interfaces | `tests/Unit/ArchTest.php` |
-| `openapi.yaml` tem exatamente as rotas da API | `tests/Feature/OpenApiTest.php` |
-| Envio com `Idempotency-Key` e o JSON esperado | `tests/Feature/RemindersTest.php` › manda pro outbox gateway com Idempotency-Key e o JSON esperado |
-| 202/200 ok, 409 já enviado, 5xx e timeout retry, outro 4xx falha | `RemindersTest` › mapeia a resposta do gateway; timeout ou gateway fora do ar vira retry; 5xx faz o job lançar exceção; 4xx falha o job sem retry |
-| Não reenvia no mesmo dia | `RemindersTest` › 409 conta como já enviado e não roda de novo; `RemindersUseCasesTest` › não reenvia no mesmo dia depois de entregue |
-| Retry no dia seguinte mantém a chave original | `RemindersTest` › retry no dia seguinte mantém a chave do dia em q foi enfileirado |
-| Lock único por fatura e dia | `RemindersTest` › lock único por fatura e por dia segura o job duplicado na fila |
-| `retry_after` > `timeout` do job > timeout HTTP | `RemindersTest` › retry_after de toda conexão de fila é maior q o timeout do job |
-| Comando agendado às 9h | `RemindersTest` › comando está agendado todo dia às 9h |
-| Páginas React (painel, clientes, faturas, lembretes) | `tests/js/**` com Vitest + Testing Library |
+| IDOR web e API: ver, editar, pagar e apagar o q é de outra empresa dá 404 e nada muda; listas só da própria empresa (q também tem dados no teste) | `tests/Feature/IdorTest.php` |
+| Quem pode o q, em cada ação, pela web e pela API | `tests/Feature/PolicyTest.php` |
+| Banco recusa fatura e lembrete cruzando empresa, valor zero, status inventado e dois `sent` na mesma chave | `tests/Feature/SchemaTest.php` |
+| Transições de status explícitas, edição não mexe em status, vencida renegociada volta pra em aberto | `tests/Unit/Domain/InvoiceTest.php`, `tests/Unit/Application/BillingUseCasesTest.php` |
+| Pagamento entre carregar e salvar não é desfeito (locking otimista) | `tests/Feature/InvoicesTest.php` |
+| Comando marca vencidas num UPDATE só e enfileira em blocos | `tests/Feature/RemindersTest.php` |
+| Envio com `Idempotency-Key` com prefixo, JSON esperado, timeouts da config | `RemindersTest` |
+| 202/200 ok, 409 já enviado, 5xx/408/429/timeout retry com Retry-After, outro 4xx falha | `RemindersTest` |
+| Fila `database` de verdade: backoff em `available_at`, lock liberado, `failed_jobs`, disjuntor e prazo de 12h | `tests/Feature/ReminderQueueTest.php` |
+| Fake do log de lembretes se comporta igual ao Eloquent | `tests/Feature/ReminderLogContractTest.php` |
+| Teto de 3 lembretes por fatura e cota diária por empresa | `tests/Unit/Application/RemindersUseCasesTest.php` |
+| Token só leitura por padrão, abilities por rota, listagem, revogação, hash fake pra e-mail inexistente e limites | `tests/Feature/TokenTest.php` |
+| Headers de segurança, seed recusando produção, props do Inertia pelos Resources | `SecurityHeadersTest`, `SeedAndLocaleTest`, `InertiaPropsTest` |
+| Arquitetura (camadas, portas, strict types) e `openapi.yaml` igual às rotas | `tests/Unit/ArchTest.php`, `tests/Feature/OpenApiTest.php` |
+| Páginas React (login, painel, clientes, faturas, lembretes) | `tests/js/**` com Vitest + Testing Library |
 
-Os testes PHP rodam contra Postgres de verdade (`invoicing_test`), nunca SQLite.
+São 275 testes PHP (1045 asserções) contra Postgres de verdade (`invoicing_test`), nunca SQLite, e 44 testes de front. O phpunit falha em warning.
 
 ### Cobertura
 
-- **PHP:** Pest com pcov e `--coverage --min=100` sobre `app/`. Nenhum arquivo excluído: o q sobrou do starter kit (providers, middlewares, model `User`) também está coberto. O `Controller` base não tem linha executável.
-- **Front:** Vitest com threshold de 100% em linhas, branches, funções e statements para o código escrito aqui: `resources/js/pages/{dashboard,clients/*,invoices/*,reminders/*}.tsx`, `resources/js/components/pagination.tsx` e `resources/js/lib/{money,invoices,navigation}.ts`.
-  Fica de fora o q veio do starter kit: `components/ui/*` (primitivos shadcn), `components/{alert-error,app-content,app-logo,app-logo-icon,app-shell,app-sidebar-header,breadcrumbs,heading,input-error,nav-main,nav-user,text-link,user-info}.tsx`, `hooks/*`, `layouts/*`, `lib/utils.ts`, `app.tsx` e os gerados pelo Wayfinder (`actions/`, `routes/`, `wayfinder/`). Alguns arquivos do kit eu mexi só pra remover o q não uso ou traduzir texto, sem lógica nova: `pages/auth/login.tsx`, `components/{app-sidebar,user-menu-content,password-input}.tsx`, `types/*`. Esses também ficam fora do threshold.
+- **PHP:** Pest com pcov e `--coverage --min=100` sobre `app/`. Nenhum arquivo excluído.
+- **Front:** Vitest com threshold de 100% em linhas, branches, funções e statements sobre `resources/js` inteiro. Fica de fora só o q o Wayfinder escreve (`actions/`, `routes/`, `wayfinder/`) e o q veio pronto do starter kit: `components/ui/*`, `layouts/*`, `hooks/*`, `types/*`, `lib/utils.ts`, `app.tsx` e os componentes de casca (sidebar, menu do usuário, breadcrumbs, logo). Arquivo novo entra no gate sozinho.
 
 ### Checagem de mutação
 
-`scripts/mutation-check.sh` quebra cada proteção de propósito, roda a suíte inteira e restaura o arquivo, inclusive se a execução for interrompida (trap em `EXIT`, `INT` e `TERM`). Saída real da última rodada:
+Duas camadas no job `mutation` do CI:
+
+1. `scripts/mutation-check.sh` quebra cada proteção principal de propósito (inclusive config e `implements ShouldBeUnique`, q ferramenta nenhuma muta), roda a suíte inteira e restaura o arquivo, mesmo se for interrompido. Saída real da última rodada:
 
 ```
-PEGO   sem escopo de tenant ->  Tests:    17 failed, 119 passed (427 assertions)
-PEGO   escopo aberto sem usuário ->  Tests:    1 failed, 135 passed (480 assertions)
-PEGO   sem lock único no job ->  Tests:    1 failed, 135 passed (479 assertions)
-PEGO   envio sem Idempotency-Key ->  Tests:    2 failed, 134 passed (480 assertions)
-PEGO   4xx tratado como retry ->  Tests:    3 failed, 133 passed (477 assertions)
-PEGO   retry_after menor q o timeout ->  Tests:    1 failed, 135 passed (479 assertions)
+PEGO   sem escopo de tenant ->  Tests:    17 failed, 258 passed (991 assertions)
+PEGO   escopo aberto sem usuário ->  Tests:    1 failed, 274 passed (1044 assertions)
+PEGO   sem lock único no job ->  Tests:    1 failed, 274 passed (1043 assertions)
+PEGO   envio sem Idempotency-Key ->  Tests:    2 failed, 273 passed (1044 assertions)
+PEGO   4xx tratado como retry ->  Tests:    7 failed, 268 passed (1034 assertions)
+PEGO   retry_after menor q o timeout ->  Tests:    1 failed, 274 passed (1043 assertions)
 ```
 
-Toda mutação fez pelo menos um teste falhar.
+2. `pest --mutate` em `Domain`, `Application` e `Infrastructure` com `--min=97`. Começou em 83,4% (37 mutantes escapando). Matei os q tinham sentido (limite de borda, Retry-After no passado, janela do dia da cota, gravação sem usuário logado...) e hoje está em **98,09%** (308 de 314 pegos, 2 deles por timeout). Os 6 q sobram são equivalentes: cast redundante do Eloquent e um caminho em q o fallback de backoff do worker dá o mesmo resultado.
 
 ## Limites conhecidos
 
-- Não tem cadastro nem convite de usuário: empresas e usuários vêm do seed. Também tirei do starter kit reset de senha, verificação de e-mail, 2FA e passkeys.
+- A compose é pra desenvolvimento: bind mount, `artisan serve`, senha fraca no Postgres (só em 127.0.0.1). Pra produção existe o target `prod` do `docker/Dockerfile` (FrankenPHP, opcache, sem root, healthcheck), mas não tem deploy pronto: banco, segredos e HTTPS ficam com quem for subir. Em produção use `DB_PASSWORD` forte e `SESSION_SECURE_COOKIE=true`.
+- Não tem cadastro nem convite de usuário: empresas e usuários vêm do seed. Também tirei do starter kit reset de senha, verificação de e-mail, 2FA e passkeys. Sem troca de senha, não tem como revogar token por isso; o usuário revoga pelo `DELETE /api/v1/tokens/current` e o token expira em 30 dias.
 - Fatura paga pode ser excluída pelo dono. Não tem soft delete nem trilha de auditoria, então o histórico some junto (inclusive os lembretes dela).
-- Token expirado continua na tabela `personal_access_tokens` até alguém rodar `php artisan sanctum:prune-expired`; não agendei isso.
-- Na prática só BRL. O `Money` aceita outra moeda, mas a UI e o form assumem real.
-- Fuso fixo em `America/Sao_Paulo` (`APP_TIMEZONE`), q define o q é "vencido hoje".
+- Na prática só BRL. O `Money` aceita outra moeda e a edição preserva a moeda da fatura, mas a UI e o form assumem real.
+- Fuso fixo em `America/Sao_Paulo` (`APP_TIMEZONE`), q define o q é "vencido hoje". A cota diária por empresa conta pelo horário em q o lembrete saiu.
 - A chave é por fatura e por dia. Se alguém editar a fatura depois do lembrete do dia, o log local já tem a chave e nada sai; mesmo se chegasse no gateway, ele responderia 409 (mesma chave com outro conteúdo), q conta como já enviado. O lembrete com o valor corrigido só sai no dia seguinte.
-- Lembrete com texto fixo em português, sem opt-out e sem template aprovado de WhatsApp. O gateway de demo entrega pra um mock.
-- O lock único usa o cache (driver `database` na compose). Se o cache for limpo com job na fila, o lock some, e aí sobram o log local e a chave no gateway.
-- Fatura vencida pode voltar pra "em aberto" pela edição (ex. vencimento renegociado). Se a data continuar no passado, o comando do dia seguinte marca de novo.
+- Lembrete com texto em português e a descrição livre da fatura, sem opt-out e sem template aprovado de WhatsApp. O teto por fatura e a cota por empresa limitam o abuso, mas não filtram link no texto. O gateway de demo entrega pra um mock.
+- O lock único usa o cache (driver `database` na compose). Se o cache for limpo com job na fila, o lock some, e aí sobram o log local, o índice único de `sent` e a chave no gateway.
+- Vencida volta pra "em aberto" quando o vencimento é renegociado pra hoje ou depois. Com a data ainda no passado ela continua vencida; pra rascunho ela não volta.
+- CSP só com `frame-ancestors`: o script inline do tema e o Vite pedem um passo a mais pra uma política completa.
 - No celular as tabelas rolam na horizontal dentro do card.
 - Nos testes do front o `Head`, o `Link` e o `usePage` do Inertia são substituídos por versões simples; `useForm` e `router` são os reais, só espionados.
 
-## Como rodar
-
-Precisa só de Docker.
-
-```bash
-docker compose up -d --build        # app, Postgres 17, fila, scheduler e build do Vite
-docker compose exec app php artisan migrate:fresh --seed
-```
+## Rodando em detalhe
 
 O código entra no container por bind mount e a imagem roda com UID/GID 1000 por padrão. Se o seu usuário for outro, passa os ids no build (no bash o `UID` existe mas não é exportado e no zsh ele é especial, por isso vai com `env` na linha do comando):
 
@@ -175,17 +221,9 @@ O código entra no container por bind mount e a imagem roda com UID/GID 1000 por
 env UID=$(id -u) GID=$(id -g) docker compose up -d --build
 ```
 
-O Postgres também fica exposto no host na porta **5434** (não 5432, pra não brigar com outro Postgres local): `psql -h localhost -p 5434 -U invoicing invoicing`, senha `invoicing`.
+Na primeira subida o `setup` migra e semeia a demo; depois só migra. Pra recomeçar do zero: `docker compose exec app php artisan migrate:fresh --seed`.
 
-Abre http://localhost:8000. Usuários do seed, senha `password` pra todos:
-
-| E-mail | Empresa | Papel |
-|---|---|---|
-| dona@acme.test | Acme | dono |
-| membro@acme.test | Acme | membro (não exclui) |
-| dono@globex.test | Globex | dono |
-
-Entra com a Acme e com a Globex pra ver q uma não enxerga a outra.
+O Postgres fica no host só em `127.0.0.1:5434` (não 5432, pra não brigar com outro Postgres local): `psql -h localhost -p 5434 -U invoicing invoicing`, senha `invoicing`. As portas mudam com `APP_PORT` e `DB_PORT_HOST`.
 
 Lembretes:
 
@@ -196,15 +234,23 @@ docker compose exec app php artisan invoices:mark-overdue   # o scheduler já ro
 
 O profile `outbox` usa o banco `outbox` criado pelo script de init do Postgres. Se o volume já existia antes, cria com `docker compose exec db createdb -U invoicing outbox`.
 
-API:
+API (o token sai só leitura; pra escrever, pede `"abilities": ["invoices:write"]`):
 
 ```bash
-curl -s -X POST localhost:8000/api/v1/tokens -H 'Content-Type: application/json' -H 'Accept: application/json' \
-  -d '{"email":"dona@acme.test","password":"password","device_name":"cli"}'
-curl -s localhost:8000/api/v1/invoices -H "Authorization: Bearer <token>" -H 'Accept: application/json'
+TOKEN=$(curl -s -X POST localhost:8000/api/v1/tokens -H 'Content-Type: application/json' -H 'Accept: application/json' \
+  -d '{"email":"dona@acme.test","password":"password","device_name":"cli"}' | sed -E 's/.*"token":"([^"]+)".*/\1/')
+curl -s localhost:8000/api/v1/invoices -H "Authorization: Bearer $TOKEN" -H 'Accept: application/json'
+curl -s -X DELETE localhost:8000/api/v1/tokens/current -H "Authorization: Bearer $TOKEN" -H 'Accept: application/json'
 ```
 
-O token vale 30 dias (`SANCTUM_EXPIRATION`, em minutos); depois disso a API responde 401 e é só pedir outro. O contrato está em [`openapi.yaml`](openapi.yaml).
+O token vale 30 dias (`SANCTUM_EXPIRATION`, em minutos), tem prefixo `mti_` pro secret scanning do GitHub e o expirado é limpo todo dia. A API autenticada aceita 60 pedidos por minuto por usuário; a emissão de token, 6 por minuto por IP e por e-mail. O contrato com exemplos está em [`openapi.yaml`](openapi.yaml) ([abrir no Swagger Editor](https://editor.swagger.io/?url=https://raw.githubusercontent.com/MiguelSanzBr/multitenant-invoicing/main/openapi.yaml)).
+
+Imagem de produção:
+
+```bash
+docker build -f docker/Dockerfile --target prod -t multitenant-invoicing:prod .
+docker run -p 8080:8080 -e APP_KEY=base64:... -e DB_HOST=... -e DB_PASSWORD=... multitenant-invoicing:prod
+```
 
 Qualidade, tudo dentro do container:
 
@@ -212,17 +258,18 @@ Qualidade, tudo dentro do container:
 docker compose exec app vendor/bin/pint --test
 docker compose exec app vendor/bin/phpstan analyse --memory-limit=1G
 docker compose exec app vendor/bin/pest --coverage --min=100
-docker compose exec app sh -c 'php artisan wayfinder:generate --with-form && npm run lint && npm run types:check && npm run test:coverage && npm run build'
+docker compose exec app vendor/bin/pest --mutate --path=app/Domain,app/Application,app/Infrastructure --covered-only --parallel --min=97
 docker compose exec app sh scripts/mutation-check.sh
+docker compose exec app sh -c 'php artisan wayfinder:generate --with-form && npm run lint && npm run types:check && npm run test:coverage && npm run build'
 ```
 
-Ponta a ponta, com a stack inteira e o outbox-gateway-demo de verdade (login, API com e sem token, lembrete chegando no gateway e segunda rodada no mesmo dia sem duplicar). Usa outro nome de projeto do compose, então não mexe no seu banco de desenvolvimento:
+Ponta a ponta, com a stack inteira e o outbox-gateway-demo de verdade (login, API com e sem token, token só leitura sem escrever, lembrete chegando no gateway com a chave certa e segunda rodada no mesmo dia sem duplicar). Usa outro nome de projeto do compose e outras portas (18000 e 15434), então roda com a stack de dev no ar sem mexer no seu banco. Se falhar, os logs de todos os serviços vão pra `e2e-logs.txt`:
 
 ```bash
 bash scripts/e2e.sh
 ```
 
-O CI (`.github/workflows/ci.yml`) roda tudo isso em 4 jobs: `backend` (Pint, Larastan, Pest com 100%), `frontend` (ESLint, tipos, Vitest com 100%, build), `mutation` (as 6 mutações têm q ser pegas) e `e2e` (o `scripts/e2e.sh` acima). Runner fixo em `ubuntu-24.04` pra imagem não mudar por baixo.
+O CI (`.github/workflows/ci.yml`) roda tudo isso em 5 jobs: `backend` (Pint, Larastan nível max, Pest com 100%), `frontend` (ESLint, tipos, Vitest com 100%, build), `mutation` (as 6 proteções e o `pest --mutate` com mínimo de 97%), `image` (builda o target `prod` e espera o healthcheck) e `e2e` (o `scripts/e2e.sh`, com os logs como artifact quando falha). Actions fixadas por SHA, runner fixo em `ubuntu-24.04` e Dependabot pra actions, composer, npm e imagens Docker.
 
 ## Licença
 
