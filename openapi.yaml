@@ -5,6 +5,8 @@ info:
   description: |
     API de clientes e faturas. Tudo é isolado por empresa: recurso de outra empresa
     responde 404, igual a um id que não existe. Valores sempre em centavos (inteiro).
+    Token com abilities: leitura precisa de `*:read` (ou `*:write`), escrita de `*:write`.
+    Limite de 60 pedidos por minuto por usuário.
   license:
     name: MIT
     identifier: MIT
@@ -176,7 +178,20 @@ paths:
                       data:
                         type: array
                         items: { $ref: '#/components/schemas/Invoice' }
+              example:
+                data:
+                  - id: 12
+                    client_id: 3
+                    description: Desenvolvimento do site institucional
+                    amount_cents: 150000
+                    currency: BRL
+                    due_date: '2026-10-15'
+                    status: overdue
+                    paid_at: null
+                links: { first: '/api/v1/invoices?page=1', last: '/api/v1/invoices?page=1', prev: null, next: null }
+                meta: { current_page: 1, last_page: 1, per_page: 20, total: 1 }
         '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
     post:
       tags: [invoices]
       summary: Cria fatura
@@ -199,6 +214,10 @@ paths:
     put:
       tags: [invoices]
       summary: Atualiza fatura (não vale pra fatura paga)
+      description: |
+        `status` é opcional aqui. Sem ele o status não muda; rascunho e em aberto trocam entre si,
+        vencida não vai pra rascunho (409). Vencida com vencimento novo de hoje em diante volta pra em aberto.
+        Edição concorrente (alguém salvou depois que você leu) também responde 409.
       requestBody: { $ref: '#/components/requestBodies/InvoiceInput' }
       responses:
         '200': { $ref: '#/components/responses/InvoiceOk' }
@@ -311,7 +330,13 @@ components:
               description: { type: string, maxLength: 255 }
               amount_cents: { type: integer, minimum: 1 }
               due_date: { type: string, format: date }
-              status: { type: string, enum: [draft, open] }
+              status: { type: string, enum: [draft, open], description: Obrigatório só na criação }
+          example:
+            client_id: 3
+            description: Desenvolvimento do site institucional
+            amount_cents: 150000
+            due_date: '2026-11-10'
+            status: open
 
   responses:
     ClientOk:
@@ -345,13 +370,19 @@ components:
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
+          example: { message: Not found. }
     Conflict:
-      description: Regra de negócio, ex. pagar rascunho ou excluir cliente com fatura
+      description: Regra de negócio, ex. pagar rascunho, excluir cliente com fatura ou edição concorrente
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
+          example: { message: Só fatura em aberto ou vencida pode ser paga. }
     ValidationError:
       description: Dados inválidos
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
+          example:
+            message: O campo valor precisa ser no mínimo 1.
+            errors:
+              amount_cents: [O campo valor precisa ser no mínimo 1.]
