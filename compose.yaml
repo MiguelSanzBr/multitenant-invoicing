@@ -26,7 +26,7 @@ x-php: &php
 
 services:
   db:
-    image: postgres:17-alpine
+    image: postgres:18-alpine
     environment:
       POSTGRES_USER: invoicing
       POSTGRES_PASSWORD: ${DB_PASSWORD:-invoicing}
