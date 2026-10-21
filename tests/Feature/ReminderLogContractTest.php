@@ -87,5 +87,9 @@ it('eloquent: o dia da cota vai da meia-noite à meia-noite, qualquer q seja a h
     $at('2026-10-20 23:59:30', '2026-10-21');
     $at('2026-10-21 00:00:30', '2026-10-22');
 
-    expect($log->deliveredOn($this->invoice->company_id, new DateTimeImmutable('2026-10-20 15:30')))->toBe(2);
+    $count = fn (string $day) => $log->deliveredOn($this->invoice->company_id, new DateTimeImmutable($day));
+
+    expect($count('2026-10-20 15:30'))->toBe(2)
+        ->and($count('2026-10-19'))->toBe(1)
+        ->and($count('2026-10-21 23:00'))->toBe(1);
 });
