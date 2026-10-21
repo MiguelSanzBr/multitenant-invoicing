@@ -8,9 +8,15 @@ on:
 permissions:
   contents: read
 
+# push novo no mesmo PR cancela a rodada anterior
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   backend:
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
 
     services:
       postgres:
@@ -34,12 +40,19 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         with:
           php-version: '8.4'
           extensions: pdo_pgsql, intl, zip, bcmath
           coverage: pcov
           tools: composer:v2
+
+      - id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-${{ hashFiles('composer.lock') }}
 
       - run: composer install --no-interaction --prefer-dist --no-progress
       - run: cp .env.example .env && php artisan key:generate
@@ -55,24 +68,32 @@ jobs:
 
   frontend:
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      # o wayfinder gera as rotas TS a partir do Laravel, então o front também precisa de PHP
-      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
+      # o wayfinder escreve as rotas TS a partir do Laravel, então o front também precisa de PHP
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         with:
           php-version: '8.4'
           extensions: intl, zip
           coverage: none
           tools: composer:v2
 
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
           cache: npm
+
+      - id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-${{ hashFiles('composer.lock') }}
 
       - run: composer install --no-interaction --prefer-dist --no-progress
       - run: cp .env.example .env && php artisan key:generate
@@ -91,9 +112,9 @@ jobs:
       - name: Build
         run: npm run build
 
-  # quebra de propósito cada proteção principal; se algum mutante passar, o CI cai
   mutation:
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
 
     services:
       postgres:
@@ -117,21 +138,35 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         with:
           php-version: '8.4'
           extensions: pdo_pgsql, intl, zip, bcmath
-          coverage: none
+          # o pest --mutate precisa de cobertura pra saber quais testes rodar por mutante
+          coverage: pcov
           tools: composer:v2
+
+      - id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-${{ hashFiles('composer.lock') }}
 
       - run: composer install --no-interaction --prefer-dist --no-progress
       - run: cp .env.example .env && php artisan key:generate
 
-      - name: Checagem de mutação (6 proteções)
+      # mutantes de contrato: quebra cada proteção principal (inclusive config e interface q ferramenta nenhuma muta)
+      - name: Checagem de mutação (proteções principais)
         run: sh scripts/mutation-check.sh
 
-  # a stack inteira do README, com o outbox-gateway-demo de verdade: login, API e lembrete de ponta a ponta
-  e2e:
+      # mutação geral no domínio, nos casos de uso e nos adapters. Começou em 83,4% e subiu matando
+      # os mutantes q escapavam; o q sobra é equivalente (cast redundante, fallback do worker). O mínimo só sobe
+      - name: pest --mutate em Domain, Application e Infrastructure
+        run: vendor/bin/pest --mutate --path=app/Domain,app/Application,app/Infrastructure --covered-only --parallel --min=95
+
+  # a imagem de produção builda e responde no /up
+  image:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
 
@@ -140,5 +175,38 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: docker build --target prod
+        run: docker build -f docker/Dockerfile --target prod -t multitenant-invoicing:prod .
+
+      - name: sobe e espera o healthcheck
+        run: |
+          docker run -d --name app -e APP_KEY="base64:$(openssl rand -base64 32)" -p 8080:8080 multitenant-invoicing:prod
+          for _ in $(seq 1 30); do
+            [ "$(docker inspect --format '{{.State.Health.Status}}' app)" = healthy ] && exit 0
+            sleep 2
+          done
+          docker logs app
+          exit 1
+
+  # a stack inteira do README, com o outbox-gateway-demo de verdade: login, API e lembrete de ponta a ponta
+  e2e:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
       - name: docker compose --profile outbox e checagem de ponta a ponta
         run: bash scripts/e2e.sh
+
+      - name: logs da stack quando falha
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-logs
+          path: |
+            e2e-logs.txt
+            storage/logs/
+          if-no-files-found: ignore
