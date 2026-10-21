@@ -40,7 +40,7 @@ RUN install-php-extensions pdo_pgsql pcntl intl zip bcmath opcache \
 WORKDIR /app
 COPY --from=build --chown=app:app /app /app
 USER app
-ENV APP_ENV=production APP_DEBUG=false LOG_CHANNEL=stderr
+ENV APP_ENV=production APP_DEBUG=false LOG_CHANNEL=stderr DB_CONNECTION=pgsql
 EXPOSE 8080
 HEALTHCHECK --interval=10s --timeout=3s --start-period=20s CMD curl -fsS http://localhost:8080/up || exit 1
 # config, rotas e views em cache com o env de verdade, na subida do container
