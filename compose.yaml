@@ -26,13 +26,14 @@ x-php: &php
 
 services:
   db:
-    image: postgres:17-alpine
+    image: postgres:18-alpine
     environment:
       POSTGRES_USER: invoicing
       POSTGRES_PASSWORD: ${DB_PASSWORD:-invoicing}
       POSTGRES_DB: invoicing
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      # o 18 guarda em /var/lib/postgresql/18/docker, o volume vai no pai
+      - pgdata:/var/lib/postgresql
       - ./docker/initdb:/docker-entrypoint-initdb.d:ro
     # só na máquina local: banco com senha fraca não pode ficar aberto na rede
     ports: ["127.0.0.1:${DB_PORT_HOST:-5434}:5432"]

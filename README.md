@@ -27,7 +27,7 @@ SaaS pequeno de faturamento multi-tenant em Laravel 13 + Inertia + React. Cada e
 Precisa só de Docker.
 
 ```bash
-docker compose up -d --build   # app, Postgres 17, fila, scheduler, build do Vite e seed da demo
+docker compose up -d --build   # app, Postgres 18, fila, scheduler, build do Vite e seed da demo
 ```
 
 Abre http://localhost:8000. A tela de login lista os usuários de demo (senha `password` pra todos):
@@ -224,6 +224,8 @@ env UID=$(id -u) GID=$(id -g) docker compose up -d --build
 Na primeira subida o `setup` migra e semeia a demo; depois só migra. Pra recomeçar do zero: `docker compose exec app php artisan migrate:fresh --seed`.
 
 O Postgres fica no host só em `127.0.0.1:5434` (não 5432, pra não brigar com outro Postgres local): `psql -h localhost -p 5434 -U invoicing invoicing`, senha `invoicing`. As portas mudam com `APP_PORT` e `DB_PORT_HOST`.
+
+O volume `pgdata` de antes do Postgres 18 não sobe (o 18 mudou o diretório dos dados e o formato não é compatível com o 17). Como é só a demo, recria com `docker compose down -v` e sobe de novo; se tiver algo ali q importa, faz `pg_dump` no 17 antes e restaura no 18.
 
 Lembretes:
 

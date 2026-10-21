@@ -27,7 +27,7 @@ Small multi-tenant invoicing SaaS in Laravel 13 + Inertia + React. Each company 
 All you need is Docker.
 
 ```bash
-docker compose up -d --build   # app, Postgres 17, queue, scheduler, Vite build and the demo seed
+docker compose up -d --build   # app, Postgres 18, queue, scheduler, Vite build and the demo seed
 ```
 
 Open http://localhost:8000. The login screen lists the demo users (password `password` for all of them):
@@ -224,6 +224,8 @@ env UID=$(id -u) GID=$(id -g) docker compose up -d --build
 On the first start `setup` migrates and seeds the demo; after that it only migrates. To start over: `docker compose exec app php artisan migrate:fresh --seed`.
 
 Postgres is exposed on the host only on `127.0.0.1:5434` (not 5432, so it doesn't clash with another local Postgres): `psql -h localhost -p 5434 -U invoicing invoicing`, password `invoicing`. Ports change with `APP_PORT` and `DB_PORT_HOST`.
+
+A `pgdata` volume from before Postgres 18 won't start (18 moved the data directory and the format isn't compatible with 17). Since it's just the demo, recreate it with `docker compose down -v` and start again; if there's something in there you care about, `pg_dump` on 17 first and restore on 18.
 
 Reminders:
 
